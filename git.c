@@ -443,6 +443,7 @@ static struct cmd_struct commands[] = {
 	{ "pack-refs", cmd_pack_refs, RUN_SETUP },
 	{ "patch-id", cmd_patch_id },
 	{ "pickaxe", cmd_blame, RUN_SETUP },
+	{ "prompt--helper", cmd_prompt__helper, RUN_SETUP },
 	{ "prune", cmd_prune, RUN_SETUP },
 	{ "prune-packed", cmd_prune_packed, RUN_SETUP },
 	{ "push", cmd_push, RUN_SETUP },
