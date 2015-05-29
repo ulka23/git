@@ -499,52 +499,52 @@ test_expect_success 'prompt - format string starting with dash' '
 '
 
 test_expect_success 'prompt - pc mode' '
-	printf "BEFORE: (\${__git_ps1_branch_name}):AFTER\\nmaster" >expected &&
+	printf "BEFORE: (\${__git_ps1_string}):AFTER\\nmaster" >expected &&
 	(
 		__git_ps1 "BEFORE:" ":AFTER" >"$actual" &&
 		test_must_be_empty "$actual" &&
-		printf "%s\\n%s" "$PS1" "${__git_ps1_branch_name}" >"$actual"
+		printf "%s\\n%s" "$PS1" "${__git_ps1_string}" >"$actual"
 	) &&
 	test_cmp expected "$actual"
 '
 
 test_expect_success 'prompt - bash color pc mode - branch name' '
-	printf "BEFORE: (${c_green}\${__git_ps1_branch_name}${c_clear}):AFTER\\nmaster" >expected &&
+	printf "${c_green}master${c_clear}" >expected &&
 	(
 		GIT_PS1_SHOWCOLORHINTS=y &&
 		__git_ps1 "BEFORE:" ":AFTER" &&
-		printf "%s\\n%s" "$PS1" "${__git_ps1_branch_name}" >"$actual"
+		printf "%s" "${__git_ps1_string}" >"$actual"
 	) &&
 	test_cmp expected "$actual"
 '
 
 test_expect_success 'prompt - bash color pc mode - detached head' '
-	printf "BEFORE: (${c_red}\${__git_ps1_branch_name}${c_clear}):AFTER\\n(%s...)" $(git log -1 --format="%h" b1^) >expected &&
+	printf "${c_red}(%s...)${c_clear}" $(git log -1 --format="%h" b1^) >expected &&
 	git checkout b1^ &&
 	test_when_finished "git checkout master" &&
 	(
 		GIT_PS1_SHOWCOLORHINTS=y &&
 		__git_ps1 "BEFORE:" ":AFTER" &&
-		printf "%s\\n%s" "$PS1" "${__git_ps1_branch_name}" >"$actual"
+		printf "%s" "${__git_ps1_string}" >"$actual"
 	) &&
 	test_cmp expected "$actual"
 '
 
 test_expect_success 'prompt - bash color pc mode - dirty status indicator - dirty worktree' '
-	printf "BEFORE: (${c_green}\${__git_ps1_branch_name}${c_clear} ${c_red}*${c_clear}):AFTER\\nmaster" >expected &&
+	printf "${c_green}master${c_clear} ${c_red}*${c_clear}" >expected &&
 	echo "dirty" >file &&
 	test_when_finished "git reset --hard" &&
 	(
 		GIT_PS1_SHOWDIRTYSTATE=y &&
 		GIT_PS1_SHOWCOLORHINTS=y &&
 		__git_ps1 "BEFORE:" ":AFTER" &&
-		printf "%s\\n%s" "$PS1" "${__git_ps1_branch_name}" >"$actual"
+		printf "%s" "${__git_ps1_string}" >"$actual"
 	) &&
 	test_cmp expected "$actual"
 '
 
 test_expect_success 'prompt - bash color pc mode - dirty status indicator - dirty index' '
-	printf "BEFORE: (${c_green}\${__git_ps1_branch_name}${c_clear} ${c_green}+${c_clear}):AFTER\\nmaster" >expected &&
+	printf "${c_green}master${c_clear} ${c_green}+${c_clear}" >expected &&
 	echo "dirty" >file &&
 	test_when_finished "git reset --hard" &&
 	git add -u &&
@@ -552,13 +552,13 @@ test_expect_success 'prompt - bash color pc mode - dirty status indicator - dirt
 		GIT_PS1_SHOWDIRTYSTATE=y &&
 		GIT_PS1_SHOWCOLORHINTS=y &&
 		__git_ps1 "BEFORE:" ":AFTER" &&
-		printf "%s\\n%s" "$PS1" "${__git_ps1_branch_name}" >"$actual"
+		printf "%s" "${__git_ps1_string}" >"$actual"
 	) &&
 	test_cmp expected "$actual"
 '
 
 test_expect_success 'prompt - bash color pc mode - dirty status indicator - dirty index and worktree' '
-	printf "BEFORE: (${c_green}\${__git_ps1_branch_name}${c_clear} ${c_red}*${c_green}+${c_clear}):AFTER\\nmaster" >expected &&
+	printf "${c_green}master${c_clear} ${c_red}*${c_green}+${c_clear}" >expected &&
 	echo "dirty index" >file &&
 	test_when_finished "git reset --hard" &&
 	git add -u &&
@@ -567,25 +567,25 @@ test_expect_success 'prompt - bash color pc mode - dirty status indicator - dirt
 		GIT_PS1_SHOWCOLORHINTS=y &&
 		GIT_PS1_SHOWDIRTYSTATE=y &&
 		__git_ps1 "BEFORE:" ":AFTER" &&
-		printf "%s\\n%s" "$PS1" "${__git_ps1_branch_name}" >"$actual"
+		printf "%s" "${__git_ps1_string}" >"$actual"
 	) &&
 	test_cmp expected "$actual"
 '
 
 test_expect_success 'prompt - bash color pc mode - dirty status indicator - before root commit' '
-	printf "BEFORE: (${c_green}\${__git_ps1_branch_name}${c_clear} ${c_green}#${c_clear}):AFTER\\nmaster" >expected &&
+	printf "${c_green}master${c_clear} ${c_green}#${c_clear}" >expected &&
 	(
 		GIT_PS1_SHOWDIRTYSTATE=y &&
 		GIT_PS1_SHOWCOLORHINTS=y &&
 		cd otherrepo &&
 		__git_ps1 "BEFORE:" ":AFTER" &&
-		printf "%s\\n%s" "$PS1" "${__git_ps1_branch_name}" >"$actual"
+		printf "%s" "${__git_ps1_string}" >"$actual"
 	) &&
 	test_cmp expected "$actual"
 '
 
 test_expect_success 'prompt - bash color pc mode - inside .git directory' '
-	printf "BEFORE: (${c_green}\${__git_ps1_branch_name}${c_clear}):AFTER\\nGIT_DIR!" >expected &&
+	printf "${c_green}GIT_DIR!${c_clear}" >expected &&
 	echo "dirty" >file &&
 	test_when_finished "git reset --hard" &&
 	(
@@ -593,13 +593,13 @@ test_expect_success 'prompt - bash color pc mode - inside .git directory' '
 		GIT_PS1_SHOWCOLORHINTS=y &&
 		cd .git &&
 		__git_ps1 "BEFORE:" ":AFTER" &&
-		printf "%s\\n%s" "$PS1" "${__git_ps1_branch_name}" >"$actual"
+		printf "%s" "${__git_ps1_string}" >"$actual"
 	) &&
 	test_cmp expected "$actual"
 '
 
 test_expect_success 'prompt - bash color pc mode - stash status indicator' '
-	printf "BEFORE: (${c_green}\${__git_ps1_branch_name}${c_clear} ${c_lblue}\$${c_clear}):AFTER\\nmaster" >expected &&
+	printf "${c_green}master${c_clear} ${c_lblue}\$${c_clear}" >expected &&
 	echo 2 >file &&
 	git stash &&
 	test_when_finished "git stash drop" &&
@@ -607,18 +607,18 @@ test_expect_success 'prompt - bash color pc mode - stash status indicator' '
 		GIT_PS1_SHOWSTASHSTATE=y &&
 		GIT_PS1_SHOWCOLORHINTS=y &&
 		__git_ps1 "BEFORE:" ":AFTER" &&
-		printf "%s\\n%s" "$PS1" "${__git_ps1_branch_name}" >"$actual"
+		printf "%s" "${__git_ps1_string}" >"$actual"
 	) &&
 	test_cmp expected "$actual"
 '
 
 test_expect_success 'prompt - bash color pc mode - untracked files status indicator' '
-	printf "BEFORE: (${c_green}\${__git_ps1_branch_name}${c_clear} ${c_red}%%${c_clear}):AFTER\\nmaster" >expected &&
+	printf "${c_green}master${c_clear} ${c_red}%%${c_clear}" >expected &&
 	(
 		GIT_PS1_SHOWUNTRACKEDFILES=y &&
 		GIT_PS1_SHOWCOLORHINTS=y &&
 		__git_ps1 "BEFORE:" ":AFTER" &&
-		printf "%s\\n%s" "$PS1" "${__git_ps1_branch_name}" >"$actual"
+		printf "%s" "${__git_ps1_string}" >"$actual"
 	) &&
 	test_cmp expected "$actual"
 '
@@ -645,7 +645,7 @@ test_expect_success 'prompt - hide if pwd ignored - env var unset, config disabl
 '
 
 test_expect_success 'prompt - hide if pwd ignored - env var unset, config disabled, pc mode' '
-	printf "BEFORE: (\${__git_ps1_branch_name}):AFTER" >expected &&
+	printf "BEFORE: (\${__git_ps1_string}):AFTER" >expected &&
 	test_config bash.hideIfPwdIgnored false &&
 	(
 		cd ignored_dir &&
@@ -665,7 +665,7 @@ test_expect_success 'prompt - hide if pwd ignored - env var unset, config unset'
 '
 
 test_expect_success 'prompt - hide if pwd ignored - env var unset, config unset, pc mode' '
-	printf "BEFORE: (\${__git_ps1_branch_name}):AFTER" >expected &&
+	printf "BEFORE: (\${__git_ps1_string}):AFTER" >expected &&
 	(
 		cd ignored_dir &&
 		__git_ps1 "BEFORE:" ":AFTER" &&
@@ -686,7 +686,7 @@ test_expect_success 'prompt - hide if pwd ignored - env var set, config disabled
 '
 
 test_expect_success 'prompt - hide if pwd ignored - env var set, config disabled, pc mode' '
-	printf "BEFORE: (\${__git_ps1_branch_name}):AFTER" >expected &&
+	printf "BEFORE: (\${__git_ps1_string}):AFTER" >expected &&
 	test_config bash.hideIfPwdIgnored false &&
 	(
 		cd ignored_dir &&

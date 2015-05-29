@@ -505,15 +505,14 @@ __git_ps1 ()
 	fi
 
 	b=${b##refs/heads/}
-	if [ $pcmode = yes ] && [ $ps1_expanded = yes ]; then
-		__git_ps1_branch_name=$b
-		b="\${__git_ps1_branch_name}"
-	fi
-
 	local f="$w$i$s$u"
 	local gitstring="$c$b${f:+$z$f}$r$p"
 
 	if [ $pcmode = yes ]; then
+		if [ $ps1_expanded = yes ]; then
+			__git_ps1_string="$gitstring"
+			gitstring="\${__git_ps1_string}"
+		fi
 		if [ "${__git_printf_supports_v-}" != yes ]; then
 			gitstring=$(printf -- "$printf_format" "$gitstring")
 		else
