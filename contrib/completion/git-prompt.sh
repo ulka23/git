@@ -255,7 +255,7 @@ __git_ps1_colorize_gitstring ()
 	else
 		branch_color="$bad_color"
 	fi
-	c="$branch_color$c"
+	b="$branch_color$b"
 
 	z="$c_clear$z"
 	if [ "$w" = "*" ]; then
@@ -361,8 +361,8 @@ __git_ps1 ()
 	[ -z "$BASH_VERSION" ] || shopt -q promptvars || ps1_expanded=no
 
 	local repo_info rev_parse_exit_code
-	repo_info="$(git rev-parse --git-dir --is-inside-git-dir \
-		--is-bare-repository --is-inside-work-tree \
+	repo_info="$(git rev-parse --git-dir \
+		--is-inside-work-tree \
 		--short HEAD 2>/dev/null)"
 	rev_parse_exit_code="$?"
 
@@ -377,9 +377,6 @@ __git_ps1 ()
 	fi
 	local inside_worktree="${repo_info##*$'\n'}"
 	repo_info="${repo_info%$'\n'*}"
-	local bare_repo="${repo_info##*$'\n'}"
-	repo_info="${repo_info%$'\n'*}"
-	local inside_gitdir="${repo_info##*$'\n'}"
 	local g="${repo_info%$'\n'*}"
 
 	if [ "true" = "$inside_worktree" ] &&
@@ -454,16 +451,9 @@ __git_ps1 ()
 	local i=""
 	local s=""
 	local u=""
-	local c=""
 	local p=""
 
-	if [ "true" = "$inside_gitdir" ]; then
-		if [ "true" = "$bare_repo" ]; then
-			c="BARE:"
-		else
-			b="GIT_DIR!"
-		fi
-	elif [ "true" = "$inside_worktree" ]; then
+	if [ "true" = "$inside_worktree" ]; then
 		if [ -n "${GIT_PS1_SHOWDIRTYSTATE-}" ] &&
 		   [ "$(git config --bool bash.showDirtyState)" != "false" ]
 		then
@@ -499,7 +489,7 @@ __git_ps1 ()
 	fi
 
 	local f="$w$i$s$u"
-	local gitstring="$c$b${f:+$z$f}$r$p"
+	local gitstring="$b${f:+$z$f}$r$p"
 
 	if [ $pcmode = yes ]; then
 		if [ $ps1_expanded = yes ]; then

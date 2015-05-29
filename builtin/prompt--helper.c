@@ -33,7 +33,12 @@ int cmd_prompt__helper(int argc, const char **argv, const char *prefix)
 	else
 		return 0;
 
-	printf("%s", refname);
+	if (is_bare_repository())
+		printf("BARE:%s", refname);
+	else if (is_inside_git_dir())
+		printf("GIT_DIR!");
+	else
+		printf("%s", refname);
 
 	free(refname);
 
