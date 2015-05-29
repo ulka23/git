@@ -249,13 +249,9 @@ __git_ps1_colorize_gitstring ()
 	local ok_color=$c_green
 	local flags_color="$c_lblue"
 
-	local branch_color=""
-	if [ $detached = no ]; then
-		branch_color="$ok_color"
-	else
-		branch_color="$bad_color"
+	if [ $detached = yes ]; then
+		b="$bad_color$b"
 	fi
-	b="$branch_color$b"
 
 	z="$c_clear$z"
 	if [ "$w" = "*" ]; then
@@ -427,7 +423,9 @@ __git_ps1 ()
 	fi
 
 	if [ -z "$b" ]; then
-		b="$(git prompt--helper 2>/dev/null)"
+		b="$(git prompt--helper ${ZSH_VERSION+--zsh} \
+			${use_color:+--color} \
+			2>/dev/null)"
 		if [ -z "$b" ]; then
 			detached=yes
 			b="$(
