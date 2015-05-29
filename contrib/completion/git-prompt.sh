@@ -403,63 +403,62 @@ __git_ps1 ()
 		else
 			r="|REBASE-m"
 		fi
-	else
-		if [ -d "$g/rebase-apply" ]; then
-			__git_eread "$g/rebase-apply/next" step
-			__git_eread "$g/rebase-apply/last" total
-			if [ -f "$g/rebase-apply/rebasing" ]; then
-				__git_eread "$g/rebase-apply/head-name" b
-				r="|REBASE"
-			elif [ -f "$g/rebase-apply/applying" ]; then
-				r="|AM"
-			else
-				r="|AM/REBASE"
-			fi
-		elif [ -f "$g/MERGE_HEAD" ]; then
-			r="|MERGING"
-		elif [ -f "$g/CHERRY_PICK_HEAD" ]; then
-			r="|CHERRY-PICKING"
-		elif [ -f "$g/REVERT_HEAD" ]; then
-			r="|REVERTING"
-		elif [ -f "$g/BISECT_LOG" ]; then
-			r="|BISECTING"
-		fi
-
-		if [ -n "$b" ]; then
-			:
-		elif [ -h "$g/HEAD" ]; then
-			# symlink symbolic ref
-			b="$(git symbolic-ref HEAD 2>/dev/null)"
+	elif [ -d "$g/rebase-apply" ]; then
+		__git_eread "$g/rebase-apply/next" step
+		__git_eread "$g/rebase-apply/last" total
+		if [ -f "$g/rebase-apply/rebasing" ]; then
+			__git_eread "$g/rebase-apply/head-name" b
+			r="|REBASE"
+		elif [ -f "$g/rebase-apply/applying" ]; then
+			r="|AM"
 		else
-			local head=""
-			if ! __git_eread "$g/HEAD" head; then
-				return $exit
-			fi
-			# is it a symbolic ref?
-			b="${head#ref: }"
-			if [ "$head" = "$b" ]; then
-				detached=yes
-				b="$(
-				case "${GIT_PS1_DESCRIBE_STYLE-}" in
-				(contains)
-					git describe --contains HEAD ;;
-				(branch)
-					git describe --contains --all HEAD ;;
-				(describe)
-					git describe HEAD ;;
-				(* | default)
-					git describe --tags --exact-match HEAD ;;
-				esac 2>/dev/null)" ||
-
-				b="$short_sha..."
-				b="($b)"
-			fi
+			r="|AM/REBASE"
 		fi
+	elif [ -f "$g/MERGE_HEAD" ]; then
+		r="|MERGING"
+	elif [ -f "$g/CHERRY_PICK_HEAD" ]; then
+		r="|CHERRY-PICKING"
+	elif [ -f "$g/REVERT_HEAD" ]; then
+		r="|REVERTING"
+	elif [ -f "$g/BISECT_LOG" ]; then
+		r="|BISECTING"
 	fi
 
 	if [ -n "$step" ] && [ -n "$total" ]; then
 		r="$r $step/$total"
 	fi
+
+	if [ -n "$b" ]; then
+		:
+	elif [ -h "$g/HEAD" ]; then
+		# symlink symbolic ref
+		b="$(git symbolic-ref HEAD 2>/dev/null)"
+	else
+		local head=""
+		if ! __git_eread "$g/HEAD" head; then
+			return $exit
+		fi
+		# is it a symbolic ref?
+		b="${head#ref: }"
+		if [ "$head" = "$b" ]; then
+			detached=yes
+			b="$(
+			case "${GIT_PS1_DESCRIBE_STYLE-}" in
+			(contains)
+				git describe --contains HEAD ;;
+			(branch)
+				git describe --contains --all HEAD ;;
+			(describe)
+				git describe HEAD ;;
+			(* | default)
+				git describe --tags --exact-match HEAD ;;
+			esac 2>/dev/null)" ||
+
+			b="$short_sha..."
+			b="($b)"
+		fi
+	fi
+	b=${b##refs/heads/}
 
 	local w=""
 	local i=""
@@ -509,7 +508,6 @@ __git_ps1 ()
 		__git_ps1_colorize_gitstring
 	fi
 
-	b=${b##refs/heads/}
 	local f="$w$i$s$u"
 	local gitstring="$c$b${f:+$z$f}$r$p"
 
