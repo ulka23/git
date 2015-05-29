@@ -300,12 +300,18 @@ __git_ps1 ()
 	local ps1pc_start='\u@\h:\w '
 	local ps1pc_end='\$ '
 	local printf_format=' (%s)'
+	local use_color=""
 
 	case "$#" in
 		2|3)	pcmode=yes
 			ps1pc_start="$1"
 			ps1pc_end="$2"
 			printf_format="${3:-$printf_format}"
+			# use color only in PROMPT_COMMAND mode
+			if [ -n "${GIT_PS1_SHOWCOLORHINTS-}" ]; then
+				use_color=yes
+			fi
+
 			# set PS1 to a plain prompt so that we can
 			# simply return early if the prompt should not
 			# be decorated
@@ -499,8 +505,7 @@ __git_ps1 ()
 
 	local z="${GIT_PS1_STATESEPARATOR-" "}"
 
-	# NO color option unless in PROMPT_COMMAND mode
-	if [ $pcmode = yes ] && [ -n "${GIT_PS1_SHOWCOLORHINTS-}" ]; then
+	if [ -n "$use_color" ]; then
 		__git_ps1_colorize_gitstring
 	fi
 
