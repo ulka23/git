@@ -249,10 +249,6 @@ __git_ps1_colorize_gitstring ()
 	local ok_color=$c_green
 	local flags_color="$c_lblue"
 
-	if [ $detached = yes ]; then
-		b="$bad_color$b"
-	fi
-
 	z="$c_clear$z"
 	if [ "$w" = "*" ]; then
 		w="$bad_color$w"
@@ -292,7 +288,6 @@ __git_ps1 ()
 	# preserve exit status
 	local exit=$?
 	local pcmode=no
-	local detached=no
 	local ps1pc_start='\u@\h:\w '
 	local ps1pc_end='\$ '
 	local printf_format=' (%s)'
@@ -425,24 +420,8 @@ __git_ps1 ()
 	if [ -z "$b" ]; then
 		b="$(git prompt--helper ${ZSH_VERSION+--zsh} \
 			${use_color:+--color} \
+			${GIT_PS1_DESCRIBE_STYLE:+--describe=$GIT_PS1_DESCRIBE_STYLE} \
 			2>/dev/null)"
-		if [ -z "$b" ]; then
-			detached=yes
-			b="$(
-			case "${GIT_PS1_DESCRIBE_STYLE-}" in
-			(contains)
-				git describe --contains HEAD ;;
-			(branch)
-				git describe --contains --all HEAD ;;
-			(describe)
-				git describe HEAD ;;
-			(* | default)
-				git describe --tags --exact-match HEAD ;;
-			esac 2>/dev/null)" ||
-
-			b="$short_sha..."
-			b="($b)"
-		fi
 	fi
 
 	local w=""
