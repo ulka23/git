@@ -202,6 +202,18 @@ test_expect_success 'prompt - rebase' '
 	test_cmp expected "$actual"
 '
 
+test_expect_success 'prompt - am' '
+	printf " (b1|AM 1/3)" >expected &&
+	git checkout b1 &&
+	test_when_finished "git checkout master" &&
+	git format-patch b1..b2 &&
+	test_when_finished "rm 000*.patch" &&
+	test_must_fail git am 000* &&
+	test_when_finished "git am --abort" &&
+	__git_ps1 >"$actual" &&
+	test_cmp expected "$actual"
+'
+
 test_expect_success 'prompt - merge' '
 	printf " (b1|MERGING)" >expected &&
 	git checkout b1 &&
@@ -215,6 +227,14 @@ test_expect_success 'prompt - merge' '
 test_expect_success 'prompt - cherry-pick' '
 	printf " (master|CHERRY-PICKING)" >expected &&
 	test_must_fail git cherry-pick b1 &&
+	test_when_finished "git reset --hard" &&
+	__git_ps1 >"$actual" &&
+	test_cmp expected "$actual"
+'
+
+test_expect_success 'prompt - revert' '
+	printf " (master|REVERTING)" >expected &&
+	test_must_fail git revert b1 &&
 	test_when_finished "git reset --hard" &&
 	__git_ps1 >"$actual" &&
 	test_cmp expected "$actual"
@@ -453,6 +473,20 @@ test_expect_success 'prompt - untracked files status indicator - not shown insid
 	(
 		GIT_PS1_SHOWUNTRACKEDFILES=y &&
 		cd .git &&
+		__git_ps1 >"$actual"
+	) &&
+	test_cmp expected "$actual"
+'
+
+test_expect_success 'prompt - divergence from upstream' '
+	printf " (master u+1 origin/master)" >expected &&
+	git clone .git clone &&
+	test_when_finished "rm -rf clone" &&
+	(
+		cd clone &&
+		GIT_PS1_SHOWUPSTREAM="verbose name" &&
+		echo 2 >file &&
+		git commit -a -m"Diverging from upstream" &&
 		__git_ps1 >"$actual"
 	) &&
 	test_cmp expected "$actual"
