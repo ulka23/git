@@ -28,9 +28,11 @@ static const char **color_codes;
 static int zsh;
 static int use_color;
 static const char *describe_style;
+static const char *state_separator = " ";
+static int show_dirty;
 
 static const char * const prompt__helper_usage[] = {
-	N_("git prompt--helper [--zsh] [--color] [--describe <style>]"),
+	N_("git prompt--helper [--zsh] [--color] [--describe <style>] [--state-separator <separator>] [--show-dirty]"),
 	NULL
 };
 
@@ -39,6 +41,9 @@ static struct option prompt__helper_options[] = {
 	OPT_BOOL(0, "color", &use_color, N_("output for colored prompt")),
 	OPT_STRING(0, "describe", &describe_style, N_("style"),
 		   N_("describe detached head using the given style")),
+	OPT_STRING(0, "state-separator", &state_separator, N_("separator"),
+		   N_("separator between branch name and repo state flags")),
+	OPT_BOOL(0, "show-dirty", &show_dirty, N_("show dirty state")),
 	OPT_END(),
 };
 
@@ -72,6 +77,8 @@ static char *describe()
 
 	capture_command(&describe_cmd, &describe_out, 0);
 
+	argv_array_clear(&describe_cmd.args);
+
 	if (describe_out.len > 1) {
 		/* describe's output ends with newline, strip it */
 		strbuf_setlen(&describe_out, describe_out.len-1);
@@ -87,6 +94,7 @@ int cmd_prompt__helper(int argc, const char **argv, const char *prefix)
 	int flag;
 	char *refname;
 	enum color refname_color;
+	int dirty_worktree = 0, dirty_index = 0, is_orphan = 0;
 
 	git_config(git_default_config, NULL);
 
@@ -122,6 +130,29 @@ int cmd_prompt__helper(int argc, const char **argv, const char *prefix)
 		refname_color = color_bad;
 	}
 
+	if (!is_inside_work_tree())
+		show_dirty = 0;
+
+	if (show_dirty)
+		git_config_get_maybe_bool("bash.showDirtyState",
+					  &show_dirty);
+	if (show_dirty) {
+		static const char *diff_args[] = {
+			"diff", "--no-ext-diff", "--quiet", NULL };
+
+		dirty_worktree = cmd_diff(ARRAY_SIZE(diff_args)-1,
+					  diff_args, prefix);
+
+		is_orphan = get_sha1("HEAD", sha1) ? 1 : 0;
+		if (!is_orphan) {
+			static const char *diff_index_args[] = {
+				"diff-index", "--cached", "--quiet", "HEAD",
+				"--", NULL };
+			dirty_index = cmd_diff_index(ARRAY_SIZE(diff_index_args)-1,
+						     diff_index_args, prefix);
+		}
+	}
+
 	if (is_bare_repository()) {
 		print_with_color(refname_color, "BARE:");
 		printf("%s", refname);
@@ -129,6 +160,17 @@ int cmd_prompt__helper(int argc, const char **argv, const char *prefix)
 		print_with_color(refname_color, "GIT_DIR!");
 	else
 		print_with_color(refname_color, refname);
+
+	if (dirty_worktree || dirty_index || is_orphan) {
+		print_with_color(color_clear, state_separator);
+
+		if (dirty_worktree)
+			print_with_color(color_bad, "*");
+		if (dirty_index)
+			print_with_color(color_ok, "+");
+		if (is_orphan)
+			print_with_color(color_ok, "#");
+	}
 
 	free(refname);
 

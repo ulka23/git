@@ -250,12 +250,6 @@ __git_ps1_colorize_gitstring ()
 	local flags_color="$c_lblue"
 
 	z="$c_clear$z"
-	if [ "$w" = "*" ]; then
-		w="$bad_color$w"
-	fi
-	if [ -n "$i" ]; then
-		i="$ok_color$i"
-	fi
 	if [ -n "$s" ]; then
 		s="$flags_color$s"
 	fi
@@ -351,21 +345,15 @@ __git_ps1 ()
 	[ -z "$ZSH_VERSION" ] || [[ -o PROMPT_SUBST ]] || ps1_expanded=no
 	[ -z "$BASH_VERSION" ] || shopt -q promptvars || ps1_expanded=no
 
-	local repo_info rev_parse_exit_code
+	local repo_info
 	repo_info="$(git rev-parse --git-dir \
 		--is-inside-work-tree \
-		--short HEAD 2>/dev/null)"
-	rev_parse_exit_code="$?"
+		2>/dev/null)"
 
 	if [ -z "$repo_info" ]; then
 		return $exit
 	fi
 
-	local short_sha
-	if [ "$rev_parse_exit_code" = "0" ]; then
-		short_sha="${repo_info##*$'\n'}"
-		repo_info="${repo_info%$'\n'*}"
-	fi
 	local inside_worktree="${repo_info##*$'\n'}"
 	repo_info="${repo_info%$'\n'*}"
 	local g="${repo_info%$'\n'*}"
@@ -421,26 +409,16 @@ __git_ps1 ()
 		b="$(git prompt--helper ${ZSH_VERSION+--zsh} \
 			${use_color:+--color} \
 			${GIT_PS1_DESCRIBE_STYLE:+--describe=$GIT_PS1_DESCRIBE_STYLE} \
+			${GIT_PS1_STATESEPARATOR:+--state-separator=$GIT_PS1_STATESEPARATOR} \
+			${GIT_PS1_SHOWDIRTYSTATE:+--show-dirty} \
 			2>/dev/null)"
 	fi
 
-	local w=""
-	local i=""
 	local s=""
 	local u=""
 	local p=""
 
 	if [ "true" = "$inside_worktree" ]; then
-		if [ -n "${GIT_PS1_SHOWDIRTYSTATE-}" ] &&
-		   [ "$(git config --bool bash.showDirtyState)" != "false" ]
-		then
-			git diff --no-ext-diff --quiet || w="*"
-			if [ -n "$short_sha" ]; then
-				git diff-index --cached --quiet HEAD -- || i="+"
-			else
-				i="#"
-			fi
-		fi
 		if [ -n "${GIT_PS1_SHOWSTASHSTATE-}" ] &&
 		   git rev-parse --verify --quiet refs/stash >/dev/null
 		then
@@ -465,7 +443,7 @@ __git_ps1 ()
 		__git_ps1_colorize_gitstring
 	fi
 
-	local f="$w$i$s$u"
+	local f="$s$u"
 	local gitstring="$b${f:+$z$f}$r$p"
 
 	if [ $pcmode = yes ]; then
