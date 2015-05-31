@@ -250,9 +250,6 @@ __git_ps1_colorize_gitstring ()
 	local flags_color="$c_lblue"
 
 	z="$c_clear$z"
-	if [ -n "$s" ]; then
-		s="$flags_color$s"
-	fi
 	if [ -n "$u" ]; then
 		u="$bad_color$u"
 	fi
@@ -411,20 +408,14 @@ __git_ps1 ()
 			${GIT_PS1_DESCRIBE_STYLE:+--describe=$GIT_PS1_DESCRIBE_STYLE} \
 			${GIT_PS1_STATESEPARATOR:+--state-separator=$GIT_PS1_STATESEPARATOR} \
 			${GIT_PS1_SHOWDIRTYSTATE:+--show-dirty} \
+			${GIT_PS1_SHOWSTASHSTATE:+--show-stash} \
 			2>/dev/null)"
 	fi
 
-	local s=""
 	local u=""
 	local p=""
 
 	if [ "true" = "$inside_worktree" ]; then
-		if [ -n "${GIT_PS1_SHOWSTASHSTATE-}" ] &&
-		   git rev-parse --verify --quiet refs/stash >/dev/null
-		then
-			s="$"
-		fi
-
 		if [ -n "${GIT_PS1_SHOWUNTRACKEDFILES-}" ] &&
 		   [ "$(git config --bool bash.showUntrackedFiles)" != "false" ] &&
 		   git ls-files --others --exclude-standard --error-unmatch -- ':/*' >/dev/null 2>/dev/null
@@ -443,7 +434,7 @@ __git_ps1 ()
 		__git_ps1_colorize_gitstring
 	fi
 
-	local f="$s$u"
+	local f="$u"
 	local gitstring="$b${f:+$z$f}$r$p"
 
 	if [ $pcmode = yes ]; then

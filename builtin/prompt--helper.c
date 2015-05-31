@@ -30,9 +30,10 @@ static int use_color;
 static const char *describe_style;
 static const char *state_separator = " ";
 static int show_dirty;
+static int show_stash;
 
 static const char * const prompt__helper_usage[] = {
-	N_("git prompt--helper [--zsh] [--color] [--describe <style>] [--state-separator <separator>] [--show-dirty]"),
+	N_("git prompt--helper [--zsh] [--color] [--describe <style>] [--state-separator <separator>] [--show-dirty] [--show-stash]"),
 	NULL
 };
 
@@ -44,6 +45,7 @@ static struct option prompt__helper_options[] = {
 	OPT_STRING(0, "state-separator", &state_separator, N_("separator"),
 		   N_("separator between branch name and repo state flags")),
 	OPT_BOOL(0, "show-dirty", &show_dirty, N_("show dirty state")),
+	OPT_BOOL(0, "show-stash", &show_stash, N_("show stash state")),
 	OPT_END(),
 };
 
@@ -94,7 +96,7 @@ int cmd_prompt__helper(int argc, const char **argv, const char *prefix)
 	int flag;
 	char *refname;
 	enum color refname_color;
-	int dirty_worktree = 0, dirty_index = 0, is_orphan = 0;
+	int dirty_worktree = 0, dirty_index = 0, is_orphan = 0, has_stash = 0;
 
 	git_config(git_default_config, NULL);
 
@@ -130,8 +132,10 @@ int cmd_prompt__helper(int argc, const char **argv, const char *prefix)
 		refname_color = color_bad;
 	}
 
-	if (!is_inside_work_tree())
+	if (!is_inside_work_tree()) {
 		show_dirty = 0;
+		show_stash = 0;
+	}
 
 	if (show_dirty)
 		git_config_get_maybe_bool("bash.showDirtyState",
@@ -153,6 +157,9 @@ int cmd_prompt__helper(int argc, const char **argv, const char *prefix)
 		}
 	}
 
+	if (show_stash)
+		has_stash = get_sha1("refs/stash", sha1) ? 0 : 1;
+
 	if (is_bare_repository()) {
 		print_with_color(refname_color, "BARE:");
 		printf("%s", refname);
@@ -161,7 +168,7 @@ int cmd_prompt__helper(int argc, const char **argv, const char *prefix)
 	else
 		print_with_color(refname_color, refname);
 
-	if (dirty_worktree || dirty_index || is_orphan) {
+	if (dirty_worktree || dirty_index || is_orphan || has_stash) {
 		print_with_color(color_clear, state_separator);
 
 		if (dirty_worktree)
@@ -170,6 +177,8 @@ int cmd_prompt__helper(int argc, const char **argv, const char *prefix)
 			print_with_color(color_ok, "+");
 		if (is_orphan)
 			print_with_color(color_ok, "#");
+		if (has_stash)
+			print_with_color(color_flags, "$");
 	}
 
 	free(refname);
