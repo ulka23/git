@@ -583,6 +583,7 @@ static char *get_head_description(void)
 	memset(&state, 0, sizeof(state));
 	wt_status_get_state(&state, 1);
 	if (state.rebase_in_progress ||
+	    state.rebase_merge_in_progress ||
 	    state.rebase_interactive_in_progress)
 		strbuf_addf(&desc, _("(no branch, rebasing %s)"),
 			    state.branch);

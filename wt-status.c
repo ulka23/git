@@ -1048,7 +1048,9 @@ static void show_rebase_in_progress(struct wt_status *s,
 			status_printf_ln(s, color,
 				_("  (use \"git rebase --abort\" to check out the original branch)"));
 		}
-	} else if (state->rebase_in_progress || !stat(git_path("MERGE_MSG"), &st)) {
+	} else if (state->rebase_in_progress ||
+		   state->rebase_merge_in_progress ||
+		   !stat(git_path("MERGE_MSG"), &st)) {
 		if (state->branch)
 			status_printf_ln(s, color,
 					 _("You are currently rebasing branch '%s' on '%s'."),
@@ -1284,7 +1286,7 @@ void wt_status_get_state(struct wt_status_state *state,
 		if (!stat(git_path("rebase-merge/interactive"), &st))
 			state->rebase_interactive_in_progress = 1;
 		else
-			state->rebase_in_progress = 1;
+			state->rebase_merge_in_progress = 1;
 		state->branch = read_and_strip_branch("rebase-merge/head-name");
 		state->onto = read_and_strip_branch("rebase-merge/onto");
 		state->progress_cur = read_progress("rebase-merge/msgnum");
@@ -1316,7 +1318,9 @@ static void wt_status_print_state(struct wt_status *s,
 		show_merge_in_progress(s, state, state_color);
 	else if (state->am_in_progress)
 		show_am_in_progress(s, state, state_color);
-	else if (state->rebase_in_progress || state->rebase_interactive_in_progress)
+	else if (state->rebase_in_progress ||
+		 state->rebase_merge_in_progress ||
+		 state->rebase_interactive_in_progress)
 		show_rebase_in_progress(s, state, state_color);
 	else if (state->cherry_pick_in_progress)
 		show_cherry_pick_in_progress(s, state, state_color);
@@ -1343,7 +1347,9 @@ void wt_status_print(struct wt_status *s)
 			branch_name += 11;
 		else if (!strcmp(branch_name, "HEAD")) {
 			branch_status_color = color(WT_STATUS_NOBRANCH, s);
-			if (state.rebase_in_progress || state.rebase_interactive_in_progress) {
+			if (state.rebase_in_progress ||
+			    state.rebase_merge_in_progress ||
+			    state.rebase_interactive_in_progress) {
 				on_what = _("rebase in progress; onto ");
 				branch_name = state.onto;
 			} else if (state.detached_from) {
