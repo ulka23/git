@@ -249,10 +249,6 @@ __git_ps1_colorize_gitstring ()
 	local ok_color=$c_green
 	local flags_color="$c_lblue"
 
-	z="$c_clear$z"
-	if [ -n "$u" ]; then
-		u="$bad_color$u"
-	fi
 	r="$c_clear$r"
 }
 
@@ -409,33 +405,23 @@ __git_ps1 ()
 			${GIT_PS1_STATESEPARATOR:+--state-separator=$GIT_PS1_STATESEPARATOR} \
 			${GIT_PS1_SHOWDIRTYSTATE:+--show-dirty} \
 			${GIT_PS1_SHOWSTASHSTATE:+--show-stash} \
+			${GIT_PS1_SHOWUNTRACKEDFILES:+--show-untracked} \
 			2>/dev/null)"
 	fi
 
-	local u=""
 	local p=""
 
 	if [ "true" = "$inside_worktree" ]; then
-		if [ -n "${GIT_PS1_SHOWUNTRACKEDFILES-}" ] &&
-		   [ "$(git config --bool bash.showUntrackedFiles)" != "false" ] &&
-		   git ls-files --others --exclude-standard --error-unmatch -- ':/*' >/dev/null 2>/dev/null
-		then
-			u="%${ZSH_VERSION+%}"
-		fi
-
 		if [ -n "${GIT_PS1_SHOWUPSTREAM-}" ]; then
 			__git_ps1_show_upstream
 		fi
 	fi
 
-	local z="${GIT_PS1_STATESEPARATOR-" "}"
-
 	if [ -n "$use_color" ]; then
 		__git_ps1_colorize_gitstring
 	fi
 
-	local f="$u"
-	local gitstring="$b${f:+$z$f}$r$p"
+	local gitstring="$b$r$p"
 
 	if [ $pcmode = yes ]; then
 		if [ $ps1_expanded = yes ]; then

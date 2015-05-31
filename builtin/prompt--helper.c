@@ -31,9 +31,10 @@ static const char *describe_style;
 static const char *state_separator = " ";
 static int show_dirty;
 static int show_stash;
+static int show_untracked;
 
 static const char * const prompt__helper_usage[] = {
-	N_("git prompt--helper [--zsh] [--color] [--describe <style>] [--state-separator <separator>] [--show-dirty] [--show-stash]"),
+	N_("git prompt--helper [--zsh] [--color] [--describe <style>] [--state-separator <separator>] [--show-dirty] [--show-stash] [--show-untracked]"),
 	NULL
 };
 
@@ -46,6 +47,7 @@ static struct option prompt__helper_options[] = {
 		   N_("separator between branch name and repo state flags")),
 	OPT_BOOL(0, "show-dirty", &show_dirty, N_("show dirty state")),
 	OPT_BOOL(0, "show-stash", &show_stash, N_("show stash state")),
+	OPT_BOOL(0, "show-untracked", &show_untracked, N_("show untracked files")),
 	OPT_END(),
 };
 
@@ -97,6 +99,7 @@ int cmd_prompt__helper(int argc, const char **argv, const char *prefix)
 	char *refname;
 	enum color refname_color;
 	int dirty_worktree = 0, dirty_index = 0, is_orphan = 0, has_stash = 0;
+	int has_untracked = 0;
 
 	git_config(git_default_config, NULL);
 
@@ -135,6 +138,7 @@ int cmd_prompt__helper(int argc, const char **argv, const char *prefix)
 	if (!is_inside_work_tree()) {
 		show_dirty = 0;
 		show_stash = 0;
+		show_untracked = 0;
 	}
 
 	if (show_dirty)
@@ -160,6 +164,24 @@ int cmd_prompt__helper(int argc, const char **argv, const char *prefix)
 	if (show_stash)
 		has_stash = get_sha1("refs/stash", sha1) ? 0 : 1;
 
+	if (show_untracked)
+		git_config_get_maybe_bool("bash.showUntrackedFiles",
+					  &show_untracked);
+	if (show_untracked) {
+		struct strbuf ls_files_out = STRBUF_INIT;
+		struct child_process ls_files_cmd = CHILD_PROCESS_INIT;
+
+		argv_array_init(&ls_files_cmd.args);
+		argv_array_pushl(&ls_files_cmd.args, "ls-files", "--others",
+				 "--exclude-standard", "--error-unmatch",
+				 "--", ":/*", NULL);
+		ls_files_cmd.git_cmd = 1;
+
+		has_untracked = !capture_command(&ls_files_cmd, &ls_files_out, 0);
+		argv_array_clear(&ls_files_cmd.args);
+		strbuf_release(&ls_files_out);
+	}
+
 	if (is_bare_repository()) {
 		print_with_color(refname_color, "BARE:");
 		printf("%s", refname);
@@ -168,7 +190,8 @@ int cmd_prompt__helper(int argc, const char **argv, const char *prefix)
 	else
 		print_with_color(refname_color, refname);
 
-	if (dirty_worktree || dirty_index || is_orphan || has_stash) {
+	if (dirty_worktree || dirty_index || is_orphan || has_stash ||
+	    has_untracked) {
 		print_with_color(color_clear, state_separator);
 
 		if (dirty_worktree)
@@ -179,6 +202,8 @@ int cmd_prompt__helper(int argc, const char **argv, const char *prefix)
 			print_with_color(color_ok, "#");
 		if (has_stash)
 			print_with_color(color_flags, "$");
+		if (has_untracked)
+			print_with_color(color_bad, zsh ? "%%" : "%");
 	}
 
 	free(refname);
