@@ -227,38 +227,6 @@ __git_ps1_show_upstream ()
 
 }
 
-# Helper function that is meant to be called from __git_ps1.  It
-# injects color codes into the appropriate gitstring variables used
-# to build a gitstring.
-__git_ps1_colorize_gitstring ()
-{
-	if [[ -n ${ZSH_VERSION-} ]]; then
-		local c_red='%F{red}'
-		local c_green='%F{green}'
-		local c_lblue='%F{blue}'
-		local c_clear='%f'
-	else
-		# Using \[ and \] around colors is necessary to prevent
-		# issues with command line editing/browsing/completion!
-		local c_red='\[\e[31m\]'
-		local c_green='\[\e[32m\]'
-		local c_lblue='\[\e[1;34m\]'
-		local c_clear='\[\e[0m\]'
-	fi
-	local bad_color=$c_red
-	local ok_color=$c_green
-	local flags_color="$c_lblue"
-
-	r="$c_clear$r"
-}
-
-__git_eread ()
-{
-	local f="$1"
-	shift
-	test -r "$f" && read "$@" <"$f"
-}
-
 # __git_ps1 accepts 0 or 1 arguments (i.e., format string)
 # when called from PS1 using command substitution
 # in this mode it prints text to add to bash PS1 prompt (includes branch name)
@@ -339,7 +307,7 @@ __git_ps1 ()
 	[ -z "$BASH_VERSION" ] || shopt -q promptvars || ps1_expanded=no
 
 	local repo_info
-	repo_info="$(git rev-parse --git-dir \
+	repo_info="$(git rev-parse \
 		--is-inside-work-tree \
 		2>/dev/null)"
 
@@ -347,9 +315,7 @@ __git_ps1 ()
 		return $exit
 	fi
 
-	local inside_worktree="${repo_info##*$'\n'}"
-	repo_info="${repo_info%$'\n'*}"
-	local g="${repo_info%$'\n'*}"
+	local inside_worktree="$repo_info"
 
 	if [ "true" = "$inside_worktree" ] &&
 	   [ -n "${GIT_PS1_HIDE_IF_PWD_IGNORED-}" ] &&
@@ -359,55 +325,15 @@ __git_ps1 ()
 		return $exit
 	fi
 
-	local r=""
-	local b=""
-	local step=""
-	local total=""
-	if [ -d "$g/rebase-merge" ]; then
-		__git_eread "$g/rebase-merge/head-name" b
-		__git_eread "$g/rebase-merge/msgnum" step
-		__git_eread "$g/rebase-merge/end" total
-		if [ -f "$g/rebase-merge/interactive" ]; then
-			r="|REBASE-i"
-		else
-			r="|REBASE-m"
-		fi
-	elif [ -d "$g/rebase-apply" ]; then
-		__git_eread "$g/rebase-apply/next" step
-		__git_eread "$g/rebase-apply/last" total
-		if [ -f "$g/rebase-apply/rebasing" ]; then
-			__git_eread "$g/rebase-apply/head-name" b
-			r="|REBASE"
-		elif [ -f "$g/rebase-apply/applying" ]; then
-			r="|AM"
-		else
-			r="|AM/REBASE"
-		fi
-	elif [ -f "$g/MERGE_HEAD" ]; then
-		r="|MERGING"
-	elif [ -f "$g/CHERRY_PICK_HEAD" ]; then
-		r="|CHERRY-PICKING"
-	elif [ -f "$g/REVERT_HEAD" ]; then
-		r="|REVERTING"
-	elif [ -f "$g/BISECT_LOG" ]; then
-		r="|BISECTING"
-	fi
-
-	b=${b##refs/heads/}
-	if [ -n "$step" ] && [ -n "$total" ]; then
-		r="$r $step/$total"
-	fi
-
-	if [ -z "$b" ]; then
-		b="$(git prompt--helper ${ZSH_VERSION+--zsh} \
-			${use_color:+--color} \
-			${GIT_PS1_DESCRIBE_STYLE:+--describe=$GIT_PS1_DESCRIBE_STYLE} \
-			${GIT_PS1_STATESEPARATOR:+--state-separator=$GIT_PS1_STATESEPARATOR} \
-			${GIT_PS1_SHOWDIRTYSTATE:+--show-dirty} \
-			${GIT_PS1_SHOWSTASHSTATE:+--show-stash} \
-			${GIT_PS1_SHOWUNTRACKEDFILES:+--show-untracked} \
-			2>/dev/null)"
-	fi
+	local prompt_string
+	prompt_string="$(git prompt--helper ${ZSH_VERSION+--zsh} \
+		${use_color:+--color} \
+		${GIT_PS1_DESCRIBE_STYLE:+--describe=$GIT_PS1_DESCRIBE_STYLE} \
+		${GIT_PS1_STATESEPARATOR:+--state-separator=$GIT_PS1_STATESEPARATOR} \
+		${GIT_PS1_SHOWDIRTYSTATE:+--show-dirty} \
+		${GIT_PS1_SHOWSTASHSTATE:+--show-stash} \
+		${GIT_PS1_SHOWUNTRACKEDFILES:+--show-untracked} \
+		2>/dev/null)"
 
 	local p=""
 
@@ -417,11 +343,7 @@ __git_ps1 ()
 		fi
 	fi
 
-	if [ -n "$use_color" ]; then
-		__git_ps1_colorize_gitstring
-	fi
-
-	local gitstring="$b$r$p"
+	local gitstring="$prompt_string$p"
 
 	if [ $pcmode = yes ]; then
 		if [ $ps1_expanded = yes ]; then

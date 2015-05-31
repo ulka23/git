@@ -3,6 +3,7 @@
 #include "parse-options.h"
 #include "refs.h"
 #include "run-command.h"
+#include "wt-status.h"
 
 enum color {
 	color_clear,
@@ -94,12 +95,14 @@ static char *describe()
 
 int cmd_prompt__helper(int argc, const char **argv, const char *prefix)
 {
+	struct wt_status_state state;
 	unsigned char sha1[20];
 	int flag;
-	char *refname;
+	char *refname = NULL;
 	enum color refname_color;
 	int dirty_worktree = 0, dirty_index = 0, is_orphan = 0, has_stash = 0;
 	int has_untracked = 0;
+	const char *ongoing_op = "";
 
 	git_config(git_default_config, NULL);
 
@@ -116,23 +119,47 @@ int cmd_prompt__helper(int argc, const char **argv, const char *prefix)
 			color_codes = bash_color_codes;
 	}
 
-	refname = resolve_refdup("HEAD", 0, sha1, &flag);
-	if (!refname)
-		die("No HEAD ref");
-	else if (flag & REF_ISSYMREF) {
-		refname = shorten_unambiguous_ref(refname, 0);
-		refname_color = color_ok;
-	} else {
-		char *described = describe();
-		if (described) {
-			refname = xstrfmt("(%s)", described);
-			free(described);
+	memset(&state, 0, sizeof(state));
+	wt_status_get_state(&state, 0);
+	if (state.rebase_interactive_in_progress) {
+		ongoing_op = "|REBASE-i";
+		refname = state.branch;
+	} else if (state.rebase_merge_in_progress) {
+		ongoing_op = "|REBASE-m";
+		refname = state.branch;
+	} else if (state.rebase_in_progress) {
+		ongoing_op = "|REBASE";
+		refname = state.branch;
+	} else if (state.am_in_progress)
+		ongoing_op = "|AM";
+	else if (state.merge_in_progress)
+		ongoing_op = "|MERGING";
+	else if (state.cherry_pick_in_progress)
+		ongoing_op = "|CHERRY-PICKING";
+	else if (state.revert_in_progress)
+		ongoing_op = "|REVERTING";
+	else if (state.bisect_in_progress)
+		ongoing_op = "|BISECTING";
+
+	refname_color = color_ok;
+	if (!refname) {
+		refname = resolve_refdup("HEAD", 0, sha1, &flag);
+		if (!refname)
+			die("No HEAD ref");
+		else if (flag & REF_ISSYMREF) {
+			refname = shorten_unambiguous_ref(refname, 0);
 		} else {
-			const char *unique = find_unique_abbrev(sha1,
-							      DEFAULT_ABBREV);
-			refname = xstrfmt("(%s...)", unique);
+			char *described = describe();
+			if (described) {
+				refname = xstrfmt("(%s)", described);
+				free(described);
+			} else {
+				const char *unique = find_unique_abbrev(sha1,
+									DEFAULT_ABBREV);
+				refname = xstrfmt("(%s...)", unique);
+			}
+			refname_color = color_bad;
 		}
-		refname_color = color_bad;
 	}
 
 	if (!is_inside_work_tree()) {
@@ -205,6 +232,10 @@ int cmd_prompt__helper(int argc, const char **argv, const char *prefix)
 		if (has_untracked)
 			print_with_color(color_bad, zsh ? "%%" : "%");
 	}
+
+	print_with_color(color_clear, ongoing_op);
+	if (state.progress_cur > 0 && state.progress_end > 0)
+		printf(" %d/%d", state.progress_cur, state.progress_end);
 
 	free(refname);
 
