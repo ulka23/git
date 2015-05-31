@@ -1246,6 +1246,20 @@ static void wt_status_get_detached_from(struct wt_status_state *state)
 	strbuf_release(&cb.buf);
 }
 
+static int read_progress(const char * path)
+{
+	struct strbuf sb = STRBUF_INIT;
+	int value = 0;
+	if (strbuf_read_file(&sb, git_path("%s", path), 0) > 0) {
+		char *endptr;
+		value = strtol(sb.buf, &endptr, 10);
+		if (*endptr == '\0')
+			value = 0;
+	}
+	strbuf_release(&sb);
+	return value;
+}
+
 void wt_status_get_state(struct wt_status_state *state,
 			 int get_detached_from)
 {
@@ -1264,6 +1278,8 @@ void wt_status_get_state(struct wt_status_state *state,
 			state->branch = read_and_strip_branch("rebase-apply/head-name");
 			state->onto = read_and_strip_branch("rebase-apply/onto");
 		}
+		state->progress_cur = read_progress("rebase-apply/next");
+		state->progress_end = read_progress("rebase-apply/last");
 	} else if (!stat(git_path("rebase-merge"), &st)) {
 		if (!stat(git_path("rebase-merge/interactive"), &st))
 			state->rebase_interactive_in_progress = 1;
@@ -1271,6 +1287,8 @@ void wt_status_get_state(struct wt_status_state *state,
 			state->rebase_in_progress = 1;
 		state->branch = read_and_strip_branch("rebase-merge/head-name");
 		state->onto = read_and_strip_branch("rebase-merge/onto");
+		state->progress_cur = read_progress("rebase-merge/msgnum");
+		state->progress_end = read_progress("rebase-merge/end");
 	} else if (!stat(git_path("CHERRY_PICK_HEAD"), &st) &&
 			!get_sha1("CHERRY_PICK_HEAD", sha1)) {
 		state->cherry_pick_in_progress = 1;

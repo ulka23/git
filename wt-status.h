@@ -85,6 +85,8 @@ struct wt_status_state {
 	int cherry_pick_in_progress;
 	int bisect_in_progress;
 	int revert_in_progress;
+	int progress_cur;
+	int progress_end;
 	int detached_at;
 	char *branch;
 	char *onto;
