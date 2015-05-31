@@ -317,14 +317,6 @@ __git_ps1 ()
 
 	local inside_worktree="$repo_info"
 
-	if [ "true" = "$inside_worktree" ] &&
-	   [ -n "${GIT_PS1_HIDE_IF_PWD_IGNORED-}" ] &&
-	   [ "$(git config --bool bash.hideIfPwdIgnored)" != "false" ] &&
-	   git check-ignore -q .
-	then
-		return $exit
-	fi
-
 	local prompt_string
 	prompt_string="$(git prompt--helper ${ZSH_VERSION+--zsh} \
 		${use_color:+--color} \
@@ -333,7 +325,11 @@ __git_ps1 ()
 		${GIT_PS1_SHOWDIRTYSTATE:+--show-dirty} \
 		${GIT_PS1_SHOWSTASHSTATE:+--show-stash} \
 		${GIT_PS1_SHOWUNTRACKEDFILES:+--show-untracked} \
+		${GIT_PS1_HIDE_IF_PWD_IGNORED:+--hide-if-pwd-ignored} \
 		2>/dev/null)"
+	if [ -z "$prompt_string" ]; then
+		return $exit
+	fi
 
 	local p=""
 

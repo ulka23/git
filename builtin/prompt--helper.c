@@ -33,9 +33,10 @@ static const char *state_separator = " ";
 static int show_dirty;
 static int show_stash;
 static int show_untracked;
+static int hide_if_pwd_ignored;
 
 static const char * const prompt__helper_usage[] = {
-	N_("git prompt--helper [--zsh] [--color] [--describe <style>] [--state-separator <separator>] [--show-dirty] [--show-stash] [--show-untracked]"),
+	N_("git prompt--helper [--zsh] [--color] [--describe <style>] [--state-separator <separator>] [--show-dirty] [--show-stash] [--show-untracked] [--hide-if-pwd-ignored]"),
 	NULL
 };
 
@@ -49,6 +50,8 @@ static struct option prompt__helper_options[] = {
 	OPT_BOOL(0, "show-dirty", &show_dirty, N_("show dirty state")),
 	OPT_BOOL(0, "show-stash", &show_stash, N_("show stash state")),
 	OPT_BOOL(0, "show-untracked", &show_untracked, N_("show untracked files")),
+	OPT_BOOL(0, "hide-if-pwd-ignored", &hide_if_pwd_ignored,
+		 N_("don't show the prompt in ignored directories")),
 	OPT_END(),
 };
 
@@ -111,6 +114,17 @@ int cmd_prompt__helper(int argc, const char **argv, const char *prefix)
 	if (argc)
 		usage_with_options(prompt__helper_usage,
 				   prompt__helper_options);
+
+	if (hide_if_pwd_ignored)
+		git_config_get_maybe_bool("bash.hideIfPwdIgnored",
+					  &hide_if_pwd_ignored);
+	if (hide_if_pwd_ignored && is_inside_work_tree()) {
+		static const char *check_ignore_args[] = {
+			"check-ignore", "--quiet", ".", NULL };
+		if (!cmd_check_ignore(ARRAY_SIZE(check_ignore_args)-1,
+				      check_ignore_args, prefix))
+			return 0;
+	}
 
 	if (use_color) {
 		if (zsh)
