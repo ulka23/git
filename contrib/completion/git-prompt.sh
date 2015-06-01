@@ -306,17 +306,6 @@ __git_ps1 ()
 	[ -z "$ZSH_VERSION" ] || [[ -o PROMPT_SUBST ]] || ps1_expanded=no
 	[ -z "$BASH_VERSION" ] || shopt -q promptvars || ps1_expanded=no
 
-	local repo_info
-	repo_info="$(git rev-parse \
-		--is-inside-work-tree \
-		2>/dev/null)"
-
-	if [ -z "$repo_info" ]; then
-		return $exit
-	fi
-
-	local inside_worktree="$repo_info"
-
 	local prompt_string
 	prompt_string="$(git prompt--helper ${ZSH_VERSION+--zsh} \
 		${use_color:+--color} \
@@ -332,11 +321,8 @@ __git_ps1 ()
 	fi
 
 	local p=""
-
-	if [ "true" = "$inside_worktree" ]; then
-		if [ -n "${GIT_PS1_SHOWUPSTREAM-}" ]; then
-			__git_ps1_show_upstream
-		fi
+	if [ -n "${GIT_PS1_SHOWUPSTREAM-}" ]; then
+		__git_ps1_show_upstream
 	fi
 
 	local gitstring="$prompt_string$p"

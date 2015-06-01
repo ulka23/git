@@ -492,6 +492,21 @@ test_expect_success 'prompt - divergence from upstream' '
 	test_cmp expected "$actual"
 '
 
+test_expect_success 'prompt - divergence from upstream - inside .git directory' '
+	printf " (GIT_DIR! u+1 origin/master)" >expected &&
+	git clone .git clone &&
+	test_when_finished "rm -rf clone" &&
+	(
+		cd clone &&
+		echo 2 >file &&
+		git commit -a -m"Diverging from upstream" &&
+		cd .git &&
+		GIT_PS1_SHOWUPSTREAM="verbose name" &&
+		__git_ps1 >"$actual"
+	) &&
+	test_cmp expected "$actual"
+'
+
 test_expect_success 'prompt - format string starting with dash' '
 	printf -- "-master" >expected &&
 	__git_ps1 "-%s" >"$actual" &&
