@@ -27,6 +27,7 @@ static int show_killed;
 static int show_valid_bit;
 static int line_terminator = '\n';
 static int debug_mode;
+static int quiet;
 
 static const char *prefix;
 static int max_prefix_len;
@@ -65,6 +66,8 @@ static void show_dir_entry(const char *tag, struct dir_entry *ent)
 		die("git ls-files: internal error - directory entry not superset of prefix");
 
 	if (!dir_path_match(ent, &pathspec, len, ps_matched))
+		return;
+	if (quiet)
 		return;
 
 	fputs(tag, stdout);
@@ -459,6 +462,7 @@ int cmd_ls_files(int argc, const char **argv, const char *cmd_prefix)
 		OPT_STRING(0, "with-tree", &with_tree, N_("tree-ish"),
 			N_("pretend that paths removed since <tree-ish> are still present")),
 		OPT__ABBREV(&abbrev),
+		OPT__QUIET(&quiet, N_("suppress files output, implies --error-unmatch")),
 		OPT_BOOL(0, "debug", &debug_mode, N_("show debugging data")),
 		OPT_END()
 	};
@@ -501,6 +505,8 @@ int cmd_ls_files(int argc, const char **argv, const char *cmd_prefix)
 		show_stage = 1;
 	if (dir.exclude_per_dir)
 		exc_given = 1;
+	if (quiet)
+		error_unmatch = 1;
 
 	if (require_work_tree && !is_inside_work_tree())
 		setup_work_tree();
