@@ -209,18 +209,12 @@ int cmd_prompt__helper(int argc, const char **argv, const char *prefix)
 		git_config_get_maybe_bool("bash.showUntrackedFiles",
 					  &show_untracked);
 	if (show_untracked) {
-		struct strbuf ls_files_out = STRBUF_INIT;
-		struct child_process ls_files_cmd = CHILD_PROCESS_INIT;
+		static const char * ls_files_args[] = { "ls-files", "--others",
+				 "--exclude-standard", "--quiet", "--", ":/*",
+				 NULL };
 
-		argv_array_init(&ls_files_cmd.args);
-		argv_array_pushl(&ls_files_cmd.args, "ls-files", "--others",
-				 "--exclude-standard", "--error-unmatch",
-				 "--", ":/*", NULL);
-		ls_files_cmd.git_cmd = 1;
-
-		has_untracked = !capture_command(&ls_files_cmd, &ls_files_out, 0);
-		argv_array_clear(&ls_files_cmd.args);
-		strbuf_release(&ls_files_out);
+		has_untracked = !cmd_ls_files(ARRAY_SIZE(ls_files_args)-1,
+					      ls_files_args, prefix);
 	}
 
 	if (is_bare_repository()) {
