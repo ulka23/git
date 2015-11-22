@@ -51,14 +51,14 @@ test_expect_success 'error on dirty index and worktree' '
 	test_cmp expect err
 '
 
-test_expect_failure 'error on clean index and worktree while on orphan branch' '
+test_expect_success 'error on clean index and worktree while on orphan branch' '
 	test_when_finished "git checkout master" &&
 	git checkout --orphan orphan &&
 	git reset --hard &&
 	run_require_clean_work_tree
 '
 
-test_expect_failure 'error on dirty index while on orphan branch' '
+test_expect_success 'error on dirty index while on orphan branch' '
 	echo "Cannot do-something: Your index contains uncommitted changes." >expect &&
 	test_when_finished "git checkout master" &&
 	git checkout --orphan orphan &&
@@ -66,7 +66,7 @@ test_expect_failure 'error on dirty index while on orphan branch' '
 	test_cmp expect err
 '
 
-test_expect_failure 'error on dirty index and work tree while on orphan branch' '
+test_expect_success 'error on dirty index and work tree while on orphan branch' '
 	cat >expect <<-EOF &&
 	Cannot do-something: You have unstaged changes.
 	Additionally, your index contains uncommitted changes.

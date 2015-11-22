@@ -200,7 +200,13 @@ require_work_tree () {
 }
 
 require_clean_work_tree () {
-	git rev-parse --verify HEAD >/dev/null || exit 1
+	if git rev-parse --verify HEAD >/dev/null 2>/dev/null
+	then
+		compare_to=HEAD
+	else
+		# SHA1 of an empty tree
+		compare_to=4b825dc642cb6eb9a060e54bf8d69288fbee4904
+	fi
 	git update-index -q --ignore-submodules --refresh
 	err=0
 
@@ -210,7 +216,7 @@ require_clean_work_tree () {
 		err=1
 	fi
 
-	if ! git diff-index --cached --quiet --ignore-submodules HEAD --
+	if ! git diff-index --cached --quiet --ignore-submodules $compare_to --
 	then
 		if [ $err = 0 ]
 		then
