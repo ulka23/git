@@ -32,6 +32,11 @@ linux-gcc-4.8)
 	;;
 esac
 
+if test -n "$GIT_TEST_BASH_BINARIES"
+then
+	make -C t/ full-bash-test
+fi
+
 check_unignored_build_artifacts
 
 save_good_tree

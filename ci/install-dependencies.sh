@@ -7,6 +7,7 @@
 
 P4WHENCE=http://filehost.perforce.com/perforce/r$LINUX_P4_VERSION
 LFSWHENCE=https://github.com/github/git-lfs/releases/download/v$LINUX_GIT_LFS_VERSION
+BASHWHENCE=https://github.com/szeder/bash/releases/download
 
 case "$jobname" in
 linux-clang|linux-gcc)
@@ -31,6 +32,16 @@ linux-clang|linux-gcc)
 		wget --quiet "$LFSWHENCE/git-lfs-linux-amd64-$LINUX_GIT_LFS_VERSION.tar.gz"
 		tar --extract --gunzip --file "git-lfs-linux-amd64-$LINUX_GIT_LFS_VERSION.tar.gz"
 		cp git-lfs-$LINUX_GIT_LFS_VERSION/git-lfs .
+	popd
+	mkdir --parents "$BASH_BINARIES_PATH"
+	pushd "$BASH_BINARIES_PATH"
+		for bin in $GIT_TEST_BASH_BINARIES; do
+			ver="${bin#bash-}"
+			archive="bash-${ver}-linux-amd64.tar.gz"
+			wget --quiet "$BASHWHENCE/$ver/$archive"
+			tar --extract --gunzip --file "$archive"
+			rm "$archive"
+		done
 	popd
 	;;
 osx-clang|osx-gcc)

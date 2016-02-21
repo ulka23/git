@@ -166,6 +166,9 @@ linux-clang|linux-gcc)
 	fi
 
 	export GIT_TEST_HTTPD=true
+	export GIT_TEST_BASH_BINARIES="bash-v5.0 \
+		bash-v4.4 bash-v4.3 bash-v4.2 bash-v4.1 bash-v4.0 \
+		bash-v3.2 bash-v3.1 bash-v3.0"
 
 	# The Linux build installs the defined dependency versions below.
 	# The OS X build installs much more recent versions, whichever
@@ -177,7 +180,8 @@ linux-clang|linux-gcc)
 
 	P4_PATH="$HOME/custom/p4"
 	GIT_LFS_PATH="$HOME/custom/git-lfs"
-	export PATH="$GIT_LFS_PATH:$P4_PATH:$PATH"
+	BASH_BINARIES_PATH="$HOME/custom/bash-binaries"
+	export PATH="$BASH_BINARIES_PATH:$GIT_LFS_PATH:$P4_PATH:$PATH"
 	;;
 osx-clang|osx-gcc)
 	if [ "$jobname" = osx-gcc ]
