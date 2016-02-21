@@ -138,6 +138,8 @@ do
 		tee=t ;;
 	--root=*)
 		root=${opt#--*=} ;;
+	--suffix=*)
+		suffix=${opt#--*=} ;;
 	--chain-lint)
 		GIT_TEST_CHAIN_LINT=1 ;;
 	--no-chain-lint)
@@ -215,8 +217,8 @@ TEST_NAME="$(basename "$0" .sh)"
 TEST_NUMBER="${TEST_NAME%%-*}"
 TEST_NUMBER="${TEST_NUMBER#t}"
 TEST_RESULTS_DIR="$TEST_OUTPUT_DIRECTORY/test-results"
-TEST_RESULTS_BASE="$TEST_RESULTS_DIR/$TEST_NAME$TEST_STRESS_JOB_SFX"
-TRASH_DIRECTORY="trash directory.$TEST_NAME$TEST_STRESS_JOB_SFX"
+TEST_RESULTS_BASE="$TEST_RESULTS_DIR/$TEST_NAME${suffix:+.$suffix}$TEST_STRESS_JOB_SFX"
+TRASH_DIRECTORY="trash directory.$TEST_NAME${suffix:+.$suffix}$TEST_STRESS_JOB_SFX"
 test -n "$root" && TRASH_DIRECTORY="$root/$TRASH_DIRECTORY"
 case "$TRASH_DIRECTORY" in
 /*) ;; # absolute path is good
