@@ -1273,12 +1273,25 @@ void sanitize_stdfds(void)
 		close(fd);
 }
 
+#ifdef NO_POSIX_GOODIES
+int can_daemonize(void)
+{
+	return 0;
+}
+
 int daemonize(void)
 {
-#ifdef NO_POSIX_GOODIES
 	errno = ENOSYS;
 	return -1;
+}
 #else
+int can_daemonize(void)
+{
+	return 1;
+}
+
+int daemonize(void)
+{
 	switch (fork()) {
 		case 0:
 			break;
@@ -1294,5 +1307,5 @@ int daemonize(void)
 	close(2);
 	sanitize_stdfds();
 	return 0;
-#endif
 }
+#endif /* #ifdef NO_POSIX_GOODIES */
