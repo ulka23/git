@@ -625,6 +625,10 @@ int cmd_ls_files(int argc, const char **argv, const char *cmd_prefix)
 		       PATHSPEC_PREFER_CWD,
 		       prefix, argv);
 
+	if (!pathspec.nr && error_unmatch)
+		warning("ls-files --error-unmatch has no effect "
+			"without a pathspec");
+
 	/*
 	 * Find common prefix for all pathspec's
 	 * This is used as a performance optimization which unfortunately cannot
