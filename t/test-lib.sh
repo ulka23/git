@@ -369,13 +369,19 @@ TZ=UTC
 export LANG LC_ALL PAGER TZ
 EDITOR=:
 
-# GIT_TEST_GETTEXT_POISON should not influence git commands executed
-# during initialization of test-lib and the test repo. Back it up,
-# unset and then restore after initialization is finished.
+# GIT_TEST_GETTEXT_POISON and GIT_TEST_GETTEXT_POISON_SCRAMBLED should not
+# influence git commands executed during initialization of test-lib and
+# the test repo.
+# Back them up, unset and then restore after initialization is finished.
 if test -n "$GIT_TEST_GETTEXT_POISON"
 then
 	GIT_TEST_GETTEXT_POISON_ORIG=$GIT_TEST_GETTEXT_POISON
 	unset GIT_TEST_GETTEXT_POISON
+fi
+if test -n "$GIT_TEST_GETTEXT_POISON_SCRAMBLED"
+then
+	GIT_TEST_GETTEXT_POISON_SCRAMBLED_ORIG=$GIT_TEST_GETTEXT_POISON_SCRAMBLED
+	unset GIT_TEST_GETTEXT_POISON_SCRAMBLED
 fi
 
 # A call to "unset" with no arguments causes at least Solaris 10
@@ -1459,6 +1465,12 @@ then
 	GIT_TEST_GETTEXT_POISON=$GIT_TEST_GETTEXT_POISON_ORIG
 	export GIT_TEST_GETTEXT_POISON
 	unset GIT_TEST_GETTEXT_POISON_ORIG
+fi
+if test -n "$GIT_TEST_GETTEXT_POISON_SCRAMBLED_ORIG"
+then
+	GIT_TEST_GETTEXT_POISON_SCRAMBLED=$GIT_TEST_GETTEXT_POISON_SCRAMBLED_ORIG
+	export GIT_TEST_GETTEXT_POISON_SCRAMBLED
+	unset GIT_TEST_GETTEXT_POISON_SCRAMBLED_ORIG
 fi
 
 test_lazy_prereq C_LOCALE_OUTPUT '
