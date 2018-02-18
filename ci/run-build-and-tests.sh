@@ -22,6 +22,11 @@ linux-gcc)
 	export GIT_TEST_MULTI_PACK_INDEX=1
 	make test
 	;;
+GIT_TEST_GETTEXT_POISON)
+	make test
+	unset GIT_TEST_GETTEXT_POISON_SCRAMBLED
+	make test
+	;;
 linux-gcc-4.8)
 	# Don't run the tests; we only care about whether Git can be
 	# built with GCC 4.8, as it errors out on some undesired (C99)

@@ -187,6 +187,7 @@ osx-clang|osx-gcc)
 	;;
 GIT_TEST_GETTEXT_POISON)
 	export GIT_TEST_GETTEXT_POISON=true
+	export GIT_TEST_GETTEXT_POISON_SCRAMBLED=true
 	;;
 esac
 
