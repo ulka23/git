@@ -29,7 +29,12 @@
 #define FORMAT_PRESERVING(n) __attribute__((format_arg(n)))
 
 #define GETTEXT_POISON_MAGIC "# GETTEXT POISON #"
-int use_gettext_poison(void);
+enum poison_mode {
+	poison_mode_uninitialized = -1,
+	poison_mode_none = 0,
+	poison_mode_default
+};
+enum poison_mode use_gettext_poison(void);
 
 #ifndef NO_GETTEXT
 void git_setup_gettext(void);
@@ -49,13 +54,16 @@ static inline FORMAT_PRESERVING(1) const char *_(const char *msgid)
 {
 	if (!*msgid)
 		return "";
-	return use_gettext_poison() ? GETTEXT_POISON_MAGIC : gettext(msgid);
+	if (use_gettext_poison() == poison_mode_default)
+		return GETTEXT_POISON_MAGIC;
+
+	return gettext(msgid);
 }
 
 static inline FORMAT_PRESERVING(1) FORMAT_PRESERVING(2)
 const char *Q_(const char *msgid, const char *plu, unsigned long n)
 {
-	if (use_gettext_poison())
+	if (use_gettext_poison() == poison_mode_default)
 		return GETTEXT_POISON_MAGIC;
 	return ngettext(msgid, plu, n);
 }

@@ -65,12 +65,16 @@ const char *get_preferred_languages(void)
 	return NULL;
 }
 
-int use_gettext_poison(void)
+enum poison_mode use_gettext_poison(void)
 {
-	static int poison_requested = -1;
-	if (poison_requested == -1)
-		poison_requested = git_env_bool("GIT_TEST_GETTEXT_POISON", 0);
-	return poison_requested;
+	static enum poison_mode poison_mode = poison_mode_uninitialized;
+	if (poison_mode == poison_mode_uninitialized) {
+		if (git_env_bool("GIT_TEST_GETTEXT_POISON", 0))
+			poison_mode = poison_mode_default;
+		else
+			poison_mode = poison_mode_none;
+	}
+	return poison_mode;
 }
 
 #ifndef NO_GETTEXT
