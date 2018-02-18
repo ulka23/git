@@ -28,6 +28,7 @@
 
 #define FORMAT_PRESERVING(n) __attribute__((format_arg(n)))
 
+#define GETTEXT_POISON_MAGIC "# GETTEXT POISON #"
 int use_gettext_poison(void);
 
 #ifndef NO_GETTEXT
@@ -48,14 +49,14 @@ static inline FORMAT_PRESERVING(1) const char *_(const char *msgid)
 {
 	if (!*msgid)
 		return "";
-	return use_gettext_poison() ? "# GETTEXT POISON #" : gettext(msgid);
+	return use_gettext_poison() ? GETTEXT_POISON_MAGIC : gettext(msgid);
 }
 
 static inline FORMAT_PRESERVING(1) FORMAT_PRESERVING(2)
 const char *Q_(const char *msgid, const char *plu, unsigned long n)
 {
 	if (use_gettext_poison())
-		return "# GETTEXT POISON #";
+		return GETTEXT_POISON_MAGIC;
 	return ngettext(msgid, plu, n);
 }
 
