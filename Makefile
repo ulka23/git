@@ -2766,25 +2766,44 @@ COCCI_SOURCES = $(filter-out sha1collisiondetection/%,$(C_SOURCES))
 else
 COCCI_SOURCES = $(filter-out sha1dc/%,$(C_SOURCES))
 endif
+COCCI_SEM_PATCHES = $(wildcard contrib/coccinelle/*.cocci)
 
-%.cocci.patch: %.cocci $(COCCI_SOURCES)
-	@echo '    ' SPATCH $<; \
-	ret=0; \
-	for f in $(COCCI_SOURCES); do \
-		$(SPATCH) --sp-file $< $$f $(SPATCH_FLAGS) || \
-			{ ret=$$?; break; }; \
-	done >$@+ 2>$@.log; \
-	if test $$ret != 0; \
+define cocci_template
+$(cocci_sem_patch)_dirs := $$(addprefix $(cocci_sem_patch).patches/,$$(sort $$(dir $$(COCCI_SOURCES))))
+
+$$($(cocci_sem_patch)_dirs):
+	@mkdir -p $$@
+
+# e.g. 'contrib/coccinelle/strbuf.cocci.patches/builtin/commit.c.patch'
+# Applies one semantic patch to _one_ source file.
+$(cocci_sem_patch).patches/%.patch: % $(cocci_sem_patch)
+	@printf '     SPATCH %-25s %s\n' $$(notdir $(cocci_sem_patch)) $$<; \
+	if ! $$(SPATCH) --sp-file $(cocci_sem_patch) $$< $$(SPATCH_FLAGS) >$$@ 2>$$@.log; \
 	then \
-		cat $@.log; \
+		rm -f $$@; \
+		cat $$@.log; \
 		exit 1; \
-	fi; \
-	mv $@+ $@; \
-	if test -s $@; \
-	then \
-		echo '    ' SPATCH result: $@; \
 	fi
-coccicheck: $(addsuffix .patch,$(filter-out %.pending.cocci,$(wildcard contrib/coccinelle/*.cocci)))
+
+# e.g. 'contrib/coccinelle/strbuf.cocci.patch'
+# Applies one semantic patch to _all_ source files.
+$(cocci_sem_patch).patch: $(cocci_sem_patch) $$($(cocci_sem_patch)_dirs) $$(patsubst %,$(cocci_sem_patch).patches/%.patch,$(COCCI_SOURCES))
+	@>$$@+; \
+	for f in $$(filter %.patch,$$^); do \
+		if test -s $$$$f; \
+		then \
+			cat $$$$f >>$$@+; \
+		fi \
+	done; \
+	mv $$@+ $$@; \
+	if test -s $$@; then \
+		echo '    ' SPATCH result: $$@; \
+	fi
+endef
+
+$(foreach cocci_sem_patch,$(COCCI_SEM_PATCHES),$(eval $(cocci_template)))
+
+coccicheck: $(addsuffix .patch,$(filter-out %.pending.cocci,$(COCCI_SEM_PATCHES)))
 
 # See contrib/coccinelle/README
 coccicheck-pending: $(addsuffix .patch,$(wildcard contrib/coccinelle/*.pending.cocci))
@@ -3012,7 +3031,8 @@ profile-clean:
 	$(RM) $(addsuffix *.gcno,$(addprefix $(PROFILE_DIR)/, $(object_dirs)))
 
 cocciclean:
-	$(RM) contrib/coccinelle/*.cocci.patch*
+	$(RM) contrib/coccinelle/*.cocci.patch
+	$(RM) -r contrib/coccinelle/*.cocci.patches/
 
 clean: profile-clean coverage-clean cocciclean
 	$(RM) *.res
