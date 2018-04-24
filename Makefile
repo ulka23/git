@@ -2668,35 +2668,52 @@ COCCI_SOURCES = $(filter-out sha1collisiondetection/%,$(C_SOURCES))
 else
 COCCI_SOURCES = $(filter-out sha1dc/%,$(C_SOURCES))
 endif
+COCCI_SEM_PATCHES = $(wildcard contrib/coccinelle/*.cocci)
 
-%.cocci.patch: %.cocci $(COCCI_SOURCES)
-	@echo '    ' SPATCH $<; \
-	ret=0; \
-	for f in $(COCCI_SOURCES); do \
-		$(SPATCH) --sp-file $< $$f $(SPATCH_FLAGS) || \
-			{ ret=$$?; break; }; \
-	done >$@+ 2>$@.log; \
-	if test $$ret != 0; \
+define cocci_template
+$(cocci_sem_patch)_dirs := $$(addprefix $(cocci_sem_patch).output/,$$(sort $$(dir $$(COCCI_SOURCES))))
+
+$$($(cocci_sem_patch)_dirs):
+	@mkdir -p $$@
+
+# e.g. 'contrib/coccinelle/strbuf.cocci.output/builtin/commit.c.cpatch'
+# Applies one semantic patch to _one_ source file.
+$(cocci_sem_patch).output/%.cpatch: % $(cocci_sem_patch)
+	@printf '     SPATCH %-25s %s\n' $$(notdir $(cocci_sem_patch)) $$<; \
+	if ! $$(SPATCH) --sp-file $(cocci_sem_patch) $$< $$(SPATCH_FLAGS) >$$@+ 2>$$@.log; \
 	then \
-		cat $@.log; \
+		cat $$@.log; \
 		exit 1; \
 	fi; \
-	mv $@+ $@; \
+	mv $$@+ $$@
+
+# e.g. 'contrib/coccinelle/strbuf.cocci.patch'
+# Applies one semantic patch to _all_ source files.
+$(cocci_sem_patch).patch: $(cocci_sem_patch) $$($(cocci_sem_patch)_dirs) $$(patsubst %,$(cocci_sem_patch).output/%.cpatch,$$(COCCI_SOURCES))
+	@>$$@; \
+	for f in $$(filter %.cpatch,$$^); do \
+		if test -s $$$$f; \
+		then \
+			cat $$$$f >>$$@; \
+		fi \
+	done; \
 	: Dont show any suggested transformations and dont exit ; \
 	: with error when running as part of make coccicheck,   ; \
 	: so it can show the results from all semantic patches. ; \
-	if test -z "$(RUNNING_COCCICHECK_TARGET)" && \
-	   test -s $@; \
-	then \
-		echo '    ' SPATCH result: $@; \
+	if test -z "$$(RUNNING_COCCICHECK_TARGET)" && \
+	   test -s $$@; then \
+		echo '    ' SPATCH result: $$@; \
 		echo; \
-		cat $@; \
+		cat $$@; \
 		echo; \
 		exit 1; \
 	fi
+endef
+
+$(foreach cocci_sem_patch,$(COCCI_SEM_PATCHES),$(eval $(cocci_template)))
 
 coccicheck: RUNNING_COCCICHECK_TARGET = y
-coccicheck: $(addsuffix .patch,$(wildcard contrib/coccinelle/*.cocci))
+coccicheck: $(addsuffix .patch,$(COCCI_SEM_PATCHES))
 	@ret=0; \
 	for f in $^; do \
 		if test -s $$f; \
@@ -2923,7 +2940,8 @@ profile-clean:
 	$(RM) $(addsuffix *.gcno,$(addprefix $(PROFILE_DIR)/, $(object_dirs)))
 
 cocciclean:
-	$(RM) contrib/coccinelle/*.cocci.patch*
+	$(RM) contrib/coccinelle/*.cocci.patch
+	$(RM) -r contrib/coccinelle/*.cocci.output/
 
 clean: profile-clean coverage-clean cocciclean
 	$(RM) *.res
