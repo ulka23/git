@@ -8,10 +8,12 @@ git-add - Add file contents to the index
 SYNOPSIS
 --------
 [verse]
-'git add' [--verbose | -v] [--dry-run | -n] [--force | -f] [--interactive | -i] [--patch | -p]
-	  [--edit | -e] [--[no-]all | --[no-]ignore-removal | [--update | -u]]
-	  [--intent-to-add | -N] [--refresh] [--ignore-errors] [--ignore-missing] [--renormalize]
-	  [--chmod=(+|-)x] [--] [<pathspec>...]
+'git add' [--verbose | -v] [--dry-run | -n] [--force | -f]
+	[--interactive | -i] [--patch | -p] [--edit | -e]
+	[--[no-]all | --[no-]ignore-removal | [--update | -u]]
+	[--intent-to-add | -N] [--refresh] [--ignore-errors]
+	[--ignore-missing] [--renormalize] [--chmod=(+|-)x] [--]
+	[<pathspec>...]
 
 DESCRIPTION
 -----------
