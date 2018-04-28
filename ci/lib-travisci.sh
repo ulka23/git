@@ -97,7 +97,7 @@ fi
 export DEVELOPER=1
 export DEFAULT_TEST_TARGET=prove
 export GIT_PROVE_OPTS="--timer --jobs 3 --state=failed,slow,save"
-export GIT_TEST_OPTS="--verbose-log -x"
+export GIT_TEST_OPTS="--verbose-log -x --short-trash-dir --root='$HOME/t'"
 export GIT_TEST_CLONE_2GB=YesPlease
 
 case "$jobname" in
@@ -122,5 +122,8 @@ osx-clang|osx-gcc)
 	;;
 GETTEXT_POISON)
 	export GETTEXT_POISON=YesPlease
+	;;
+Linux32)
+	export GIT_TEST_OPTS="--verbose-log -x --short-trash-dir"
 	;;
 esac
