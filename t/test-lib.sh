@@ -924,6 +924,27 @@ test_skip () {
 			of_prereq=" of $test_prereq"
 		fi
 		skipped_reason="missing $missing_prereq${of_prereq}"
+
+		case "$TRASH_DIRECTORY" in
+		*t0000-basic)
+			# t0000 uses dummy prereqs to verify that handling
+			# prereqs (met, unmet, lazy, multiple) works as
+			# expected; ignore them.
+			;;
+		*)
+			if ! test -d "$TEST_RESULTS_DIR"
+			then
+				mkdir -p "$TEST_RESULTS_DIR"
+			fi
+			missing_prereq="$missing_prereq,"
+			while test -n "$missing_prereq"
+			do
+				mpr="${missing_prereq%%,*}"
+				echo "$mpr" >>"$TEST_RESULTS_BASE.missing_prereqs"
+				missing_prereq="${missing_prereq#$mpr,}"
+			done
+			;;
+		esac
 	fi
 	if test -z "$to_skip" && test -n "$run_list" &&
 		! match_test_selector_list '--run' $test_count "$run_list"
