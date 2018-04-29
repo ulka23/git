@@ -1,6 +1,10 @@
 #!/bin/sh
 
-gpg_version=$(gpg --version 2>&1)
+# Set $GIT_TEST_GPG_PROGRAM to the GnuPG executable you want to use
+# during the test.  Defaults to "gpg".
+gpg_prg="${GIT_TEST_GPG_PROGRAM-gpg}"
+
+gpg_version=$("$gpg_prg" --version 2>&1)
 if test $? != 127
 then
 	# As said here: http://www.gnupg.org/documentation/faqs.html#q6.19
@@ -32,13 +36,17 @@ then
 		GNUPGHOME="$(pwd)/gpghome" &&
 		export GNUPGHOME &&
 		(gpgconf --kill gpg-agent >/dev/null 2>&1 || : ) &&
-		gpg --homedir "${GNUPGHOME}" 2>/dev/null --import \
+		"$gpg_prg" --homedir "${GNUPGHOME}" 2>/dev/null --import \
 			"$TEST_DIRECTORY"/lib-gpg/keyring.gpg &&
-		gpg --homedir "${GNUPGHOME}" 2>/dev/null --import-ownertrust \
+		"$gpg_prg" --homedir "${GNUPGHOME}" 2>/dev/null --import-ownertrust \
 			"$TEST_DIRECTORY"/lib-gpg/ownertrust &&
-		gpg --homedir "${GNUPGHOME}" </dev/null >/dev/null 2>&1 \
+		"$gpg_prg" --homedir "${GNUPGHOME}" </dev/null >/dev/null 2>&1 \
 			--sign -u committer@example.com &&
 		test_set_prereq GPG &&
+		if test -n "$GIT_TEST_GPG_PROGRAM"
+		then
+			git config gpg.program "$GIT_TEST_GPG_PROGRAM"
+		fi &&
 		# Available key info:
 		# * see t/lib-gpg/gpgsm-gen-key.in
 		# To generate new certificate:
@@ -72,7 +80,7 @@ then
 fi
 
 if test_have_prereq GPG &&
-    echo | gpg --homedir "${GNUPGHOME}" -b --rfc1991 >/dev/null 2>&1
+   echo | "$gpg_prg" --homedir "${GNUPGHOME}" -b --rfc1991 >/dev/null 2>&1
 then
 	test_set_prereq RFC1991
 fi

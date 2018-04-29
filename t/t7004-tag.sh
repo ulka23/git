@@ -1369,8 +1369,14 @@ test_expect_success GPG \
 # try to produce invalid signature
 test_expect_success GPG \
 	'git tag -s fails if gpg is misconfigured (bad signature format)' \
-	'test_config gpg.program echo &&
-	 test_must_fail git tag -s -m tail tag-gpg-failure'
+	'if test -n "$GIT_TEST_GPG_PROGRAM"
+	then
+		test_when_finished git config gpg.program "$GIT_TEST_GPG_PROGRAM"
+	else
+		test_when_finished git config --unset gpg.program
+	fi &&
+	git config gpg.program echo &&
+	test_must_fail git tag -s -m tail tag-gpg-failure'
 
 # try to sign with bad user.signingkey
 test_expect_success GPGSM \
