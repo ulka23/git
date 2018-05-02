@@ -2682,11 +2682,33 @@ endif
 		exit 1; \
 	fi; \
 	mv $@+ $@; \
-	if test -s $@; \
+	: Dont show any suggested transformations and dont exit ; \
+	: with error when running as part of make coccicheck,   ; \
+	: so it can show the results from all semantic patches. ; \
+	if test -z "$(RUNNING_COCCICHECK_TARGET)" && \
+	   test -s $@; \
 	then \
 		echo '    ' SPATCH result: $@; \
+		echo; \
+		cat $@; \
+		echo; \
+		exit 1; \
 	fi
+
+coccicheck: RUNNING_COCCICHECK_TARGET = y
 coccicheck: $(addsuffix .patch,$(wildcard contrib/coccinelle/*.cocci))
+	@ret=0; \
+	for f in $^; do \
+		if test -s $$f; \
+		then \
+			echo '    ' SPATCH result: $$f; \
+			echo; \
+			cat $$f; \
+			echo; \
+			ret=1; \
+		fi; \
+	done; \
+	exit $$ret
 
 .PHONY: coccicheck
 
