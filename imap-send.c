@@ -525,7 +525,7 @@ static struct imap_cmd *issue_imap_cmd(struct imap_store *ctx,
 	int n, bufl;
 	char buf[1024];
 
-	cmd = xmalloc(sizeof(struct imap_cmd));
+	cmd = xmalloc(sizeof(*cmd));
 	nfvasprintf(&cmd->cmd, fmt, ap);
 	cmd->tag = ++imap->nexttag;
 

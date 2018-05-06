@@ -1847,7 +1847,7 @@ static void init_diff_words_data(struct emit_callback *ecbdata,
 				 struct diff_filespec *two)
 {
 	int i;
-	struct diff_options *o = xmalloc(sizeof(struct diff_options));
+	struct diff_options *o = xmalloc(sizeof(*o));
 	memcpy(o, orig_opts, sizeof(struct diff_options));
 
 	ecbdata->diff_words =

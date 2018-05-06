@@ -31,7 +31,7 @@ int cmd__mergesort(int argc, const char **argv)
 	for (;;) {
 		if (strbuf_getwholeline(&sb, stdin, '\n'))
 			break;
-		line = xmalloc(sizeof(struct line));
+		line = xmalloc(sizeof(*line));
 		line->text = strbuf_detach(&sb, NULL);
 		if (p) {
 			line->next = p->next;

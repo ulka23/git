@@ -3140,7 +3140,7 @@ static void save_parents(struct rev_info *revs, struct commit *commit)
 	struct commit_list **pp;
 
 	if (!revs->saved_parents_slab) {
-		revs->saved_parents_slab = xmalloc(sizeof(struct saved_parents));
+		revs->saved_parents_slab = xmalloc(sizeof(*revs->saved_parents_slab));
 		init_saved_parents(revs->saved_parents_slab);
 	}
 

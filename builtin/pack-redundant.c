@@ -74,7 +74,7 @@ static void llist_free(struct llist *list)
 
 static inline void llist_init(struct llist **list)
 {
-	*list = xmalloc(sizeof(struct llist));
+	*list = xmalloc(sizeof(**list));
 	(*list)->front = (*list)->back = NULL;
 	(*list)->size = 0;
 }
@@ -209,7 +209,7 @@ static void llist_sorted_difference_inplace(struct llist *A,
 static inline struct pack_list * pack_list_insert(struct pack_list **pl,
 					   struct pack_list *entry)
 {
-	struct pack_list *p = xmalloc(sizeof(struct pack_list));
+	struct pack_list *p = xmalloc(sizeof(*p));
 	memcpy(p, entry, sizeof(struct pack_list));
 	p->next = *pl;
 	*pl = p;
@@ -241,7 +241,7 @@ static struct pack_list * pack_list_difference(const struct pack_list *A,
 			return pack_list_difference(A->next, B);
 		pl = pl->next;
 	}
-	ret = xmalloc(sizeof(struct pack_list));
+	ret = xmalloc(sizeof(*ret));
 	memcpy(ret, A, sizeof(struct pack_list));
 	ret->next = pack_list_difference(A->next, B);
 	return ret;
@@ -454,7 +454,7 @@ static void minimize(struct pack_list **min)
 		perm_all = perm = get_permutations(non_unique, n);
 		while (perm) {
 			if (is_superset(perm->pl, missing)) {
-				new_perm = xmalloc(sizeof(struct pll));
+				new_perm = xmalloc(sizeof(*new_perm));
 				memcpy(new_perm, perm, sizeof(struct pll));
 				new_perm->next = perm_ok;
 				perm_ok = new_perm;

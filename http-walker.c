@@ -603,8 +603,8 @@ static void cleanup(struct walker *walker)
 struct walker *get_http_walker(const char *url)
 {
 	char *s;
-	struct walker_data *data = xmalloc(sizeof(struct walker_data));
-	struct walker *walker = xmalloc(sizeof(struct walker));
+	struct walker_data *data = xmalloc(sizeof(*data));
+	struct walker *walker = xmalloc(sizeof(*walker));
 
 	data->alt = xmalloc(sizeof(*data->alt));
 	data->alt->base = xstrdup(url);

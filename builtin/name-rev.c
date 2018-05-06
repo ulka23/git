@@ -83,7 +83,7 @@ static void name_rev(struct commit *commit,
 	}
 
 	if (name == NULL) {
-		name = xmalloc(sizeof(struct rev_name));
+		name = xmalloc(sizeof(*name));
 		commit->util = name;
 		goto copy_data;
 	} else if (is_better_name(name, tip_name, taggerdate,

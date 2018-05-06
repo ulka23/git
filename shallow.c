@@ -29,8 +29,7 @@ void set_alternate_shallow_file(const char *path, int override)
 
 int register_shallow(const struct object_id *oid)
 {
-	struct commit_graft *graft =
-		xmalloc(sizeof(struct commit_graft));
+	struct commit_graft *graft = xmalloc(sizeof(*graft));
 	struct commit *commit = lookup_commit(oid);
 
 	oidcpy(&graft->oid, oid);
@@ -117,7 +116,7 @@ struct commit_list *get_shallow_commits(struct object_array *heads, int depth,
 		commit->object.flags |= not_shallow_flag;
 		for (p = commit->parents, commit = NULL; p; p = p->next) {
 			if (!p->item->util) {
-				int *pointer = xmalloc(sizeof(int));
+				int *pointer = xmalloc(sizeof(*pointer));
 				p->item->util = pointer;
 				*pointer =  cur_depth;
 			} else {

@@ -203,7 +203,7 @@ out:
 static void handle_header(struct strbuf **out, const struct strbuf *line)
 {
 	if (!*out) {
-		*out = xmalloc(sizeof(struct strbuf));
+		*out = xmalloc(sizeof(**out));
 		strbuf_init(*out, line->len);
 	} else
 		strbuf_reset(*out);
@@ -239,7 +239,7 @@ static int slurp_attr(const char *line, const char *name, struct strbuf *attr)
 
 static void handle_content_type(struct mailinfo *mi, struct strbuf *line)
 {
-	struct strbuf *boundary = xmalloc(sizeof(struct strbuf));
+	struct strbuf *boundary = xmalloc(sizeof(*boundary));
 	strbuf_init(boundary, line->len);
 
 	if (slurp_attr(line->buf, "boundary=", boundary)) {
@@ -362,7 +362,7 @@ static struct strbuf *decode_q_segment(const struct strbuf *q_seg, int rfc2047)
 {
 	const char *in = q_seg->buf;
 	int c;
-	struct strbuf *out = xmalloc(sizeof(struct strbuf));
+	struct strbuf *out = xmalloc(sizeof(*out));
 	strbuf_init(out, q_seg->len);
 
 	while ((c = *in++) != 0) {
@@ -390,7 +390,7 @@ static struct strbuf *decode_b_segment(const struct strbuf *b_seg)
 	/* Decode in..ep, possibly in-place to ot */
 	int c, pos = 0, acc = 0;
 	const char *in = b_seg->buf;
-	struct strbuf *out = xmalloc(sizeof(struct strbuf));
+	struct strbuf *out = xmalloc(sizeof(*out));
 	strbuf_init(out, b_seg->len);
 
 	while ((c = *in++) != 0) {

@@ -1144,7 +1144,7 @@ static pid_t mingw_spawnve_fd(const char *cmd, const char **argv, char **deltaen
 	 */
 	EnterCriticalSection(&pinfo_cs);
 	{
-		struct pinfo_t *info = xmalloc(sizeof(struct pinfo_t));
+		struct pinfo_t *info = xmalloc(sizeof(*info));
 		info->pid = pi.dwProcessId;
 		info->proc = pi.hProcess;
 		info->next = pinfo;

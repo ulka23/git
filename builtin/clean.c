@@ -612,7 +612,7 @@ static int *list_and_choose(struct menu_opts *opts, struct menu_stuff *stuff)
 	}
 
 	if (eof) {
-		result = xmalloc(sizeof(int));
+		result = xmalloc(sizeof(*result));
 		*result = EOF;
 	} else {
 		int j = 0;

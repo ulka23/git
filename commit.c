@@ -432,7 +432,7 @@ int find_commit_subject(const char *commit_buffer, const char **subject)
 
 struct commit_list *commit_list_insert(struct commit *item, struct commit_list **list_p)
 {
-	struct commit_list *new_list = xmalloc(sizeof(struct commit_list));
+	struct commit_list *new_list = xmalloc(sizeof(*new_list));
 	new_list->item = item;
 	new_list->next = *list_p;
 	*list_p = new_list;
@@ -1617,7 +1617,7 @@ struct commit *get_merge_parent(const char *name)
 struct commit_list **commit_list_append(struct commit *commit,
 					struct commit_list **next)
 {
-	struct commit_list *new_commit = xmalloc(sizeof(struct commit_list));
+	struct commit_list *new_commit = xmalloc(sizeof(*new_commit));
 	new_commit->item = commit;
 	*next = new_commit;
 	new_commit->next = NULL;

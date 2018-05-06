@@ -177,7 +177,7 @@ static struct stored_bitmap *store_bitmap(struct bitmap_index *index,
 	khiter_t hash_pos;
 	int ret;
 
-	stored = xmalloc(sizeof(struct stored_bitmap));
+	stored = xmalloc(sizeof(*stored));
 	stored->root = root;
 	stored->xor = xor_with;
 	stored->flags = flags;

@@ -46,7 +46,7 @@ int cmd_merge_recursive(int argc, const char **argv, const char *prefix)
 			continue;
 		}
 		if (bases_count < ARRAY_SIZE(bases)-1) {
-			struct object_id *oid = xmalloc(sizeof(struct object_id));
+			struct object_id *oid = xmalloc(sizeof(*oid));
 			if (get_oid(argv[i], oid))
 				die(_("could not parse object '%s'"), argv[i]);
 			bases[bases_count++] = oid;

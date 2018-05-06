@@ -258,7 +258,7 @@ void graph_setup_line_prefix(struct diff_options *diffopt)
 
 struct git_graph *graph_init(struct rev_info *opt)
 {
-	struct git_graph *graph = xmalloc(sizeof(struct git_graph));
+	struct git_graph *graph = xmalloc(sizeof(*graph));
 
 	if (!column_colors) {
 		char *string;

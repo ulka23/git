@@ -91,7 +91,7 @@ void precompose_argv(int argc, const char **argv)
 
 PREC_DIR *precompose_utf8_opendir(const char *dirname)
 {
-	PREC_DIR *prec_dir = xmalloc(sizeof(PREC_DIR));
+	PREC_DIR *prec_dir = xmalloc(sizeof(*prec_dir));
 	prec_dir->dirent_nfc = xmalloc(sizeof(dirent_prec_psx));
 	prec_dir->dirent_nfc->max_name_len = sizeof(prec_dir->dirent_nfc->d_name);
 

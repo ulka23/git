@@ -285,7 +285,7 @@ struct object *parse_object(const struct object_id *oid)
 struct object_list *object_list_insert(struct object *item,
 				       struct object_list **list_p)
 {
-	struct object_list *new_list = xmalloc(sizeof(struct object_list));
+	struct object_list *new_list = xmalloc(sizeof(*new_list));
 	new_list->item = item;
 	new_list->next = *list_p;
 	*list_p = new_list;

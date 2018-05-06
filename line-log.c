@@ -678,7 +678,7 @@ static struct line_log_data *line_log_data_merge(struct line_log_data *a,
 			src = b;
 			b = b->next;
 		}
-		d = xmalloc(sizeof(struct line_log_data));
+		d = xmalloc(sizeof(*d));
 		line_log_data_init(d);
 		d->path = xstrdup(src->path);
 		*pp = d;
@@ -1041,7 +1041,7 @@ static int process_diff_filepair(struct rev_info *rev,
 
 static struct diff_filepair *diff_filepair_dup(struct diff_filepair *pair)
 {
-	struct diff_filepair *new_filepair = xmalloc(sizeof(struct diff_filepair));
+	struct diff_filepair *new_filepair = xmalloc(sizeof(*new_filepair));
 	new_filepair->one = pair->one;
 	new_filepair->two = pair->two;
 	new_filepair->one->count++;

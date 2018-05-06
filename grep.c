@@ -314,7 +314,7 @@ void append_grep_pat(struct grep_opt *opt, const char *pat, size_t patlen,
 struct grep_opt *grep_opt_dup(const struct grep_opt *opt)
 {
 	struct grep_pat *pat;
-	struct grep_opt *ret = xmalloc(sizeof(struct grep_opt));
+	struct grep_opt *ret = xmalloc(sizeof(*ret));
 	*ret = *opt;
 
 	ret->pattern_list = NULL;

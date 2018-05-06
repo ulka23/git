@@ -120,7 +120,7 @@ static int notes_rewrite_config(const char *k, const char *v, void *cb)
 
 struct notes_rewrite_cfg *init_copy_notes_for_rewrite(const char *cmd)
 {
-	struct notes_rewrite_cfg *c = xmalloc(sizeof(struct notes_rewrite_cfg));
+	struct notes_rewrite_cfg *c = xmalloc(sizeof(*c));
 	const char *rewrite_mode_env = getenv(GIT_NOTES_REWRITE_MODE_ENVIRONMENT);
 	const char *rewrite_refs_env = getenv(GIT_NOTES_REWRITE_REF_ENVIRONMENT);
 	c->cmd = cmd;

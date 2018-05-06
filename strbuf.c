@@ -167,7 +167,7 @@ struct strbuf **strbuf_split_buf(const char *str, size_t slen,
 			if (end)
 				len = end - str + 1;
 		}
-		t = xmalloc(sizeof(struct strbuf));
+		t = xmalloc(sizeof(*t));
 		strbuf_init(t, len);
 		strbuf_add(t, str, len);
 		ALLOC_GROW(ret, nr + 2, alloc);

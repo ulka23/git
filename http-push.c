@@ -1266,7 +1266,7 @@ static int locking_available(void)
 
 static struct object_list **add_one_object(struct object *obj, struct object_list **p)
 {
-	struct object_list *entry = xmalloc(sizeof(struct object_list));
+	struct object_list *entry = xmalloc(sizeof(*entry));
 	entry->item = obj;
 	entry->next = *p;
 	*p = entry;

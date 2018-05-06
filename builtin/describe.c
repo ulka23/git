@@ -115,7 +115,7 @@ static void add_to_known_names(const char *path,
 	struct tag *tag = NULL;
 	if (replace_name(e, prio, oid, &tag)) {
 		if (!e) {
-			e = xmalloc(sizeof(struct commit_name));
+			e = xmalloc(sizeof(*e));
 			oidcpy(&e->peeled, peeled);
 			hashmap_entry_init(e, sha1hash(peeled->hash));
 			hashmap_add(&names, e);

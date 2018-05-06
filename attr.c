@@ -123,7 +123,7 @@ static void attr_hashmap_add(struct attr_hashmap *map,
 	if (!map->map.tablesize)
 		attr_hashmap_init(map);
 
-	e = xmalloc(sizeof(struct attr_hash_entry));
+	e = xmalloc(sizeof(*e));
 	hashmap_entry_init(e, memhash(key, keylen));
 	e->key = key;
 	e->keylen = keylen;
