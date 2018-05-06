@@ -378,13 +378,14 @@ static inline int prune_traversal(struct name_entry *e,
 int traverse_trees(int n, struct tree_desc *t, struct traverse_info *info)
 {
 	int error = 0;
-	struct name_entry *entry = xmalloc(n*sizeof(*entry));
+	struct name_entry *entry;
 	int i;
 	struct tree_desc_x *tx = xcalloc(n, sizeof(*tx));
 	struct strbuf base = STRBUF_INIT;
 	int interesting = 1;
 	char *traverse_path;
 
+	ALLOC_ARRAY(entry, n);
 	for (i = 0; i < n; i++)
 		tx[i].d = t[i];
 

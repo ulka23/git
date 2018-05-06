@@ -57,3 +57,19 @@ expression n;
 @@
 - ptr = xmalloc((n) * sizeof(T));
 + ALLOC_ARRAY(ptr, n);
+
+@@
+type T;
+identifier ptr;
+expression n;
+@@
+-T *ptr = xmalloc((n) * sizeof(T));
++T *ptr; ALLOC_ARRAY(ptr, n);
+
+@@
+type T;
+identifier ptr;
+expression n;
+@@
+-T *ptr = xmalloc((n) * sizeof(*ptr));
++T *ptr; ALLOC_ARRAY(ptr, n);
