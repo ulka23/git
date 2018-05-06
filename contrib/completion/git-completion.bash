@@ -34,6 +34,12 @@
 # You can set the following environment variables to influence the behavior of
 # the completion routines:
 #
+#   GIT_COMPLETION_INCLUDE_COMMANDS
+#   GIT_COMPLETION_EXCLUDE_COMMANDS
+#
+#     Space separated list of commands to include/exclude from the list
+#     of commands completed after 'git <TAB>'.
+#
 #   GIT_COMPLETION_CHECKOUT_NO_GUESS
 #
 #     When set to "1", do not include "DWIM" suggestions in git-checkout
@@ -3123,8 +3129,16 @@ __git_main ()
 			--help
 			"
 			;;
-		*)     __git_compute_porcelain_commands
-		       __gitcomp "$__git_porcelain_commands $(__git_aliases)" ;;
+		*)	local commands
+			__git_compute_porcelain_commands
+			# leading and trailing spaces are important
+			commands=" ${__git_porcelain_commands//$'\n'/ } "
+			for command in $GIT_COMPLETION_EXCLUDE_COMMANDS; do
+				commands="${commands/ $command / }"
+			done
+			__gitcomp "$commands $(__git_aliases)
+				   $GIT_COMPLETION_INCLUDE_COMMANDS"
+			;;
 		esac
 		return
 	fi

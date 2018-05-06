@@ -1215,6 +1215,18 @@ test_expect_success 'basic' '
 	! grep -q -v "^f" out
 '
 
+test_expect_success 'include/exclude commands' '
+	(
+		GIT_COMPLETION_INCLUDE_COMMANDS="hash-object write-tree" &&
+		GIT_COMPLETION_EXCLUDE_COMMANDS="add checkout" &&
+		run_completion "git " &&
+		grep hash-object out &&
+		grep write-tree out &&
+		! grep add out &&
+		! grep checkout out
+	)
+'
+
 test_expect_success 'double dash "git" itself' '
 	test_completion "git --" <<-\EOF
 	--paginate Z
