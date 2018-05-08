@@ -1,6 +1,7 @@
 #!/bin/sh
 
 test_description='remote push rejects are reported by client'
+test_preserve_cwd=UnfortunatelyYes
 
 . ./test-lib.sh
 

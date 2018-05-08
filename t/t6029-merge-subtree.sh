@@ -1,6 +1,7 @@
 #!/bin/sh
 
 test_description='subtree merge strategy'
+test_preserve_cwd=UnfortunatelyYes
 
 . ./test-lib.sh
 

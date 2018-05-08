@@ -1,6 +1,8 @@
 #!/bin/sh
 
 test_description='git mv in subdirs'
+test_preserve_cwd=UnfortunatelyYes
+
 . ./test-lib.sh
 
 test_expect_success \
