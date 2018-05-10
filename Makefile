@@ -2682,6 +2682,8 @@ C_SOURCES = $(patsubst %.o,%.c,$(C_OBJ))
 	fi
 coccicheck: $(patsubst %.cocci,%.cocci.patch,$(wildcard contrib/coccinelle/*.cocci))
 
+.PHONY: coccicheck
+
 ### Installation rules
 
 ifneq ($(filter /%,$(firstword $(template_dir))),)
