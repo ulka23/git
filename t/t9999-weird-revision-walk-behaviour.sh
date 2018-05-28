@@ -30,7 +30,7 @@ test_expect_success 'debug' '
 	git log --oneline --graph --all
 '
 
-test_expect_failure "\"Merge branch 'b1' into b2\" should not be shown" '
+test_expect_success "\"Merge branch 'b1' into b2\" should not be shown" '
 	git log master..b2 -- file >actual &&
 	test_must_be_empty actual
 '

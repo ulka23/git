@@ -605,7 +605,7 @@ static inline int limiting_can_increase_treesame(const struct rev_info *revs)
 
 static void try_to_simplify_commit(struct rev_info *revs, struct commit *commit)
 {
-	struct commit_list **pp, *parent;
+	struct commit_list **pp, *parent, *treesame_parents = NULL;
 	struct treesame_state *ts = NULL;
 	int relevant_change = 0, irrelevant_change = 0;
 	int relevant_parents, nth_parent;
@@ -672,6 +672,7 @@ static void try_to_simplify_commit(struct rev_info *revs, struct commit *commit)
 		switch (rev_compare_tree(revs, p, commit)) {
 		case REV_TREE_SAME:
 			if (!revs->simplify_history || !relevant_commit(p)) {
+				struct commit_list *tp;
 				/* Even if a merge with an uninteresting
 				 * side branch brought the entire change
 				 * we are interested in, we do not want
@@ -680,6 +681,10 @@ static void try_to_simplify_commit(struct rev_info *revs, struct commit *commit)
 				 */
 				if (ts)
 					ts->treesame[nth_parent] = 1;
+				tp = treesame_parents;
+				treesame_parents = xmalloc(sizeof(*treesame_parents));
+				treesame_parents->item = p;
+				treesame_parents->next = tp;
 				continue;
 			}
 			parent->next = NULL;
@@ -715,6 +720,14 @@ static void try_to_simplify_commit(struct rev_info *revs, struct commit *commit)
 		}
 		die("bad tree compare for commit %s", oid_to_hex(&commit->object.oid));
 	}
+
+	if (relevant_parents == 0 && revs->simplify_history &&
+	    treesame_parents) {
+		commit->parents = treesame_parents;
+		commit->object.flags |= TREESAME;
+		return;
+	} else
+		free_commit_list(treesame_parents);
 
 	/*
 	 * TREESAME is straightforward for single-parent commits. For merge
