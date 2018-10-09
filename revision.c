@@ -467,6 +467,25 @@ static void file_change(struct diff_options *options,
 /* Another static... */
 static struct bloom_filter bf;
 
+static struct trace_key trace_bloom_filter = TRACE_KEY_INIT(BLOOM_FILTER);
+static int trace_bloom_filter_atexit_registered;
+static unsigned int bloom_filter_count_maybe;
+static unsigned int bloom_filter_count_definitely_not;
+static unsigned int bloom_filter_count_false_positive;
+
+static void print_bloom_filter_stats_atexit(void)
+{
+	unsigned int total = bloom_filter_count_maybe +
+			     bloom_filter_count_definitely_not;
+	trace_printf_key(&trace_bloom_filter,
+			 "bloom filter total queries: %d definitely not: %d maybe: %d false positives: %d fp ratio: %f\n",
+			 total,
+			 bloom_filter_count_definitely_not,
+			 bloom_filter_count_maybe,
+			 bloom_filter_count_false_positive,
+			 (1.0 * bloom_filter_count_false_positive) / total);
+}
+
 static int check_maybe_different_in_bloom_filter(struct rev_info *revs,
 						 struct commit *parent,
 						 struct commit *commit)
@@ -513,10 +532,12 @@ static int check_maybe_different_in_bloom_filter(struct rev_info *revs,
 			 * at those paths that the Bloom filter have found
 			 * unchanged.
 			 */
+			bloom_filter_count_maybe++;
 			return 1;
 		}
 	}
 
+	bloom_filter_count_definitely_not++;
 	return 0;
 }
 
@@ -525,6 +546,7 @@ static int rev_compare_tree(struct rev_info *revs,
 {
 	struct tree *t1 = get_commit_tree(parent);
 	struct tree *t2 = get_commit_tree(commit);
+	int bloom_ret;
 
 	if (!t1)
 		return REV_TREE_NEW;
@@ -549,7 +571,8 @@ static int rev_compare_tree(struct rev_info *revs,
 			return REV_TREE_SAME;
 	}
 
-	if (!check_maybe_different_in_bloom_filter(revs, parent, commit))
+	bloom_ret = check_maybe_different_in_bloom_filter(revs, parent, commit);
+	if (bloom_ret == 0)
 		return REV_TREE_SAME;
 
 	tree_difference = REV_TREE_SAME;
@@ -557,6 +580,8 @@ static int rev_compare_tree(struct rev_info *revs,
 	if (diff_tree_oid(&t1->object.oid, &t2->object.oid, "",
 			   &revs->pruning) < 0)
 		return REV_TREE_DIFFERENT;
+	if (bloom_ret == 1 && tree_difference == REV_TREE_SAME)
+		bloom_filter_count_false_positive++;
 	return tree_difference;
 }
 
@@ -3197,6 +3222,13 @@ static void prepare_to_use_bloom_filter(struct rev_info *revs)
 	if (bloom_filter_load(&bf) < 0) {
 		warning("you wanted to use the Bloom filter, but it couldn't be loaded");
 		return;
+	}
+
+	if (trace_want(&trace_bloom_filter)) {
+		if (!trace_bloom_filter_atexit_registered) {
+			atexit(print_bloom_filter_stats_atexit);
+			trace_bloom_filter_atexit_registered = 1;
+		}
 	}
 }
 
