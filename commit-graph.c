@@ -14,6 +14,9 @@
 #include "object-store.h"
 #include "alloc.h"
 #include "progress.h"
+#include "bloom-filter.h"
+#include "diff.h"
+#include "diffcore.h"
 
 #define GRAPH_SIGNATURE 0x43475048 /* "CGPH" */
 #define GRAPH_CHUNKID_OIDFANOUT 0x4f494446 /* "OIDF" */
@@ -709,6 +712,117 @@ static int add_ref_to_list(const char *refname,
 	return 0;
 }
 
+static void add_changes_to_bloom_filter(struct bloom_filter *bf,
+					struct commit *parent,
+					struct commit *commit,
+					struct diff_options *diffopt)
+{
+	unsigned char p_c_hash[GIT_MAX_RAWSZ];
+	int i;
+
+	hashxor(parent->object.oid.hash, commit->object.oid.hash, p_c_hash);
+
+	diff_tree_oid(&parent->object.oid, &commit->object.oid, "", diffopt);
+	diffcore_std(diffopt);
+
+	for (i = 0; i < diff_queued_diff.nr; i++) {
+		const char *path = diff_queued_diff.queue[i]->two->path;
+		const char *p = path;
+
+		/*
+		 * Add each leading directory of the changed file, i.e. for
+		 * 'dir/subdir/file' add 'dir' and 'dir/subdir' as well, so
+		 * the Bloom filter could be used to speed up commands like
+		 * 'git log dir/subdir', too.
+		 *
+		 * Note that directories are added without the trailing '/'.
+		 */
+		do {
+			git_hash_ctx ctx;
+			unsigned char name_hash[GIT_MAX_RAWSZ];
+			unsigned char hash[GIT_MAX_RAWSZ];
+
+			p = strchrnul(p + 1, '/');
+
+			/*
+			 * Beware all the wasted CPU cycles!
+			 *
+			 * Most paths change (a lot) more than once in the
+			 * history of a repository, so this hashes the same
+			 * paths over and over again, accounting for almost
+			 * 40% of the runtime.
+			 */
+			the_hash_algo->init_fn(&ctx);
+			the_hash_algo->update_fn(&ctx, path, p - path);
+			the_hash_algo->final_fn(name_hash, &ctx);
+
+			hashxor(name_hash, p_c_hash, hash);
+			bloom_filter_add_hash(bf, hash);
+		} while (*p);
+
+		diff_free_filepair(diff_queued_diff.queue[i]);
+	}
+
+	free(diff_queued_diff.queue);
+	DIFF_QUEUE_CLEAR(&diff_queued_diff);
+}
+
+static void fill_bloom_filter(struct bloom_filter *bf,
+				    struct progress *progress)
+{
+	struct rev_info revs;
+	const char *revs_argv[] = {NULL, "--all", NULL};
+	struct commit *commit;
+	int i = 0;
+
+	/* We (re-)create the bloom filter from scratch every time for now. */
+	init_revisions(&revs, NULL);
+	revs.diffopt.flags.recursive = 1;
+	setup_revisions(2, revs_argv, &revs, NULL);
+
+	if (prepare_revision_walk(&revs))
+		die("revision walk setup failed while preparing bloom filter");
+
+	while ((commit = get_revision(&revs))) {
+		struct commit_list *parent;
+
+		for (parent = commit->parents; parent; parent = parent->next)
+			add_changes_to_bloom_filter(bf, parent->item, commit,
+						    &revs.diffopt);
+
+		display_progress(progress, ++i);
+	}
+}
+
+static void write_bloom_filter(int report_progress, int commit_nr)
+{
+	struct bloom_filter bf;
+	struct progress *progress = NULL;
+	const char *v = getenv("GIT_USE_POC_BLOOM_FILTER");
+	unsigned int bitsize;
+	char *end;
+
+	if (!v)
+		return;
+
+	bitsize = strtol(v, &end, 10);
+	if (*end)
+		die("GIT_USE_POC_BLOOM_FILTER must specify the number of bits in the bloom filter (multiple of 8, n < 2^32)");
+
+	bloom_filter_init(&bf, bitsize);
+
+	if (report_progress)
+		progress = start_progress(_("Computing bloom filter"),
+					  commit_nr);
+
+	fill_bloom_filter(&bf, progress);
+
+	bloom_filter_write(&bf);
+	bloom_filter_free(&bf);
+
+	stop_progress(&progress);
+}
+
 void write_commit_graph_reachable(const char *obj_dir, int append,
 				  int report_progress)
 {
@@ -915,6 +1029,8 @@ void write_commit_graph(const char *obj_dir,
 	close_commit_graph();
 	finalize_hashfile(f, NULL, CSUM_HASH_IN_STREAM | CSUM_FSYNC);
 	commit_lock_file(&lk);
+
+	write_bloom_filter(report_progress, commits.nr);
 
 	free(graph_name);
 	free(commits.list);
