@@ -27,6 +27,7 @@
 #include "commit-reach.h"
 #include "commit-graph.h"
 #include "prio-queue.h"
+#include "bloom-filter.h"
 
 volatile show_early_output_fn_t show_early_output;
 
@@ -463,6 +464,62 @@ static void file_change(struct diff_options *options,
 	options->flags.has_changes = 1;
 }
 
+/* Another static... */
+static struct bloom_filter bf;
+
+static int check_maybe_different_in_bloom_filter(struct rev_info *revs,
+						 struct commit *parent,
+						 struct commit *commit)
+{
+	unsigned char p_c_hash[GIT_MAX_RAWSZ];
+	int i;
+
+	if (!bf.bits)
+		return -1;
+	/*
+	 * If a commit is not in the 'commit-graph' file, then it's not in
+	 * the Bloom filter either, so any query into that would report
+	 * back a false negative, which is unacceptable.
+	 *
+	 * The writer of the Bloom filter must ensure that all commits that
+	 * go into the 'commit-graph' go into the Bloom filter as well.
+	 *
+	 * If we won't tie the Bloom filter to the commit-graph tightly,
+	 * then we'll have to come up with another means to prevent such
+	 * false negatives.
+	 */
+	if (!the_repository->objects->commit_graph)
+		return -1;
+	if (commit->generation == GENERATION_NUMBER_INFINITY)
+		return -1;
+
+	hashxor(parent->object.oid.hash, commit->object.oid.hash, p_c_hash);
+
+	for (i = 0; i < revs->pruning.pathspec.nr; i++) {
+		struct pathspec_item *pi = &revs->pruning.pathspec.items[i];
+		unsigned char hash[GIT_MAX_RAWSZ];
+
+		hashxor(pi->name_hash, p_c_hash, hash);
+		if (bloom_filter_check_hash(&bf, hash)) {
+			/*
+			 * At least one of the interesting pathspecs differs,
+			 * so we can return early and let the diff machinery
+			 * make sure that they indeed differ.
+			 *
+			 * Note: the diff machinery will look at all the given
+			 * paths; a possible future optimization might bring
+			 * the Bloom filter and the diff machinery closer to
+			 * each other, so the diff won't waste time looking
+			 * at those paths that the Bloom filter have found
+			 * unchanged.
+			 */
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
 static int rev_compare_tree(struct rev_info *revs,
 			    struct commit *parent, struct commit *commit)
 {
@@ -491,6 +548,9 @@ static int rev_compare_tree(struct rev_info *revs,
 		if (!revs->prune_data.nr)
 			return REV_TREE_SAME;
 	}
+
+	if (!check_maybe_different_in_bloom_filter(revs, parent, commit))
+		return REV_TREE_SAME;
 
 	tree_difference = REV_TREE_SAME;
 	revs->pruning.flags.has_changes = 0;
@@ -3106,6 +3166,40 @@ static void expand_topo_walk(struct rev_info *revs, struct commit *commit)
 	}
 }
 
+static void prepare_to_use_bloom_filter(struct rev_info *revs)
+{
+	const char *env = getenv("GIT_USE_POC_BLOOM_FILTER");
+	int i;
+
+	if (!env || !*env)
+		return;
+
+	for (i = 0; i < revs->pruning.pathspec.nr; i++) {
+		struct pathspec_item *pi = &revs->pruning.pathspec.items[i];
+		const char *path = pi->match;
+		git_hash_ctx ctx;
+		size_t len = strlen(path);
+
+		/*
+		 * TODO: What about wildcards?  We'd probably just want to
+		 * ignore the Bloom filter then.
+		 */
+		the_hash_algo->init_fn(&ctx);
+		the_hash_algo->update_fn(&ctx, path,
+					 path[len - 1] == '/' ? len - 1 : len);
+		the_hash_algo->final_fn(pi->name_hash, &ctx);
+	}
+
+	if (bf.bits)
+		/* Already loaded. */
+		return;
+
+	if (bloom_filter_load(&bf) < 0) {
+		warning("you wanted to use the Bloom filter, but it couldn't be loaded");
+		return;
+	}
+}
+
 int prepare_revision_walk(struct rev_info *revs)
 {
 	int i;
@@ -3155,6 +3249,9 @@ int prepare_revision_walk(struct rev_info *revs)
 		simplify_merges(revs);
 	if (revs->children.name)
 		set_children(revs);
+
+	prepare_to_use_bloom_filter(revs);
+
 	return 0;
 }
 
