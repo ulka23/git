@@ -14,18 +14,18 @@ docker pull daald/ubuntu32:xenial
 container_cache_dir=/tmp/travis-cache
 
 docker run \
-	--interactive \
-	--env DEVELOPER \
-	--env DEFAULT_TEST_TARGET \
-	--env GIT_PROVE_OPTS \
-	--env GIT_TEST_OPTS \
-	--env GIT_TEST_CLONE_2GB \
+	--detach --interactive --tty \
 	--env cache_dir="$container_cache_dir" \
 	--volume "${PWD}:/usr/src/git" \
 	--volume "$cache_dir:$container_cache_dir" \
+	--name Linux32 \
 	daald/ubuntu32:xenial \
-	/usr/src/git/ci/run-linux32-build.sh $(id -u $USER)
+	/bin/bash
 
-check_unignored_build_artifacts
-
-save_good_tree
+# Update packages to the latest available versions
+docker exec --interactive --tty Linux32 \
+	linux32 --32bit i386 sh -c '
+		apt update >/dev/null &&
+		apt install -q -y build-essential libcurl4-openssl-dev \
+			libssl-dev libexpat-dev gettext python
+	'
