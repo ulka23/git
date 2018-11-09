@@ -81,6 +81,8 @@ check_unignored_build_artifacts ()
 # and installing dependencies.
 set -ex
 
+set
+
 cache_dir="$HOME/travis-cache"
 good_trees_file="$cache_dir/good-trees"
 

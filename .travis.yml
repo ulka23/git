@@ -25,11 +25,13 @@ addons:
 matrix:
   include:
     - env: jobname=GETTEXT_POISON
+      name: GETTEXT_POISON
       os: linux
       compiler:
       addons:
       before_install:
     - env: jobname=Windows
+      name: Windows
       os: linux
       compiler:
       addons:
@@ -40,6 +42,7 @@ matrix:
           ci/run-windows-build.sh $TRAVIS_BRANCH $(git rev-parse HEAD)
       after_failure:
     - env: jobname=Linux32
+      name: Linux32
       os: linux
       compiler:
       addons:
@@ -48,6 +51,7 @@ matrix:
       before_install:
       script: ci/run-linux32-docker.sh
     - env: jobname=StaticAnalysis
+      name: StaticAnalysis
       os: linux
       compiler:
       addons:
@@ -58,6 +62,7 @@ matrix:
       script: ci/run-static-analysis.sh
       after_failure:
     - env: jobname=Documentation
+      name: Documentation
       os: linux
       compiler:
       addons:
