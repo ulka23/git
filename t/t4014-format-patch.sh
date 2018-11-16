@@ -1161,7 +1161,7 @@ append_signoff()
 
 test_expect_success 'signoff: commit with no body' '
 	append_signoff </dev/null >actual &&
-	cat <<\EOF | sed "s/EOL$//" >expected &&
+	sed "s/EOL$//" <<\EOF >expected &&
 4:Subject: [PATCH] EOL
 8:
 9:Signed-off-by: C O Mitter <committer@example.com>

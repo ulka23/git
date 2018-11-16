@@ -32,7 +32,7 @@ verify_notes () {
 	test_cmp "expect_log_$notes_ref" "output_log_$notes_ref"
 }
 
-cat <<EOF | sort >expect_notes_x
+sort <<EOF >expect_notes_x
 6e8e3febca3c2bb896704335cc4d0c34cb2f8715 $commit_sha4
 e5388c10860456ee60673025345fe2e153eb8cf8 $commit_sha3
 ceefa674873670e7ecd131814d909723cce2b669 $commit_sha2
@@ -62,7 +62,7 @@ test_expect_success 'setup merge base (x)' '
 	verify_notes x
 '
 
-cat <<EOF | sort >expect_notes_y
+sort <<EOF >expect_notes_y
 e2bfd06a37dd2031684a59a6e2b033e212239c78 $commit_sha4
 5772f42408c0dd6f097a7ca2d24de0e78d1c46b1 $commit_sha3
 b0a6021ec006d07e80e9b20ec9b444cbd9d560d3 $commit_sha1
@@ -94,7 +94,7 @@ test_expect_success 'setup local branch (y)' '
 	verify_notes y
 '
 
-cat <<EOF | sort >expect_notes_z
+sort <<EOF >expect_notes_z
 cff59c793c20bb49a4e01bc06fb06bad642e0d54 $commit_sha4
 283b48219aee9a4105f6cab337e789065c82c2b9 $commit_sha2
 0a81da8956346e19bcb27a906f04af327e03e31b $commit_sha1
@@ -136,7 +136,7 @@ test_expect_success 'setup remote branch (z)' '
 # 4th    | 6e8e3fe | e2bfd06 | cff59c7  | changed   / changed (diff)
 # 5th    | [none]  | [none]  | [none]   | [none]
 
-cat <<EOF | sort >expect_conflicts
+sort <<EOF >expect_conflicts
 $commit_sha1
 $commit_sha2
 $commit_sha3
@@ -192,7 +192,7 @@ test_expect_success 'merge z into m (== y) with default ("manual") resolver => C
 	test "$(git rev-parse refs/notes/m)" = "$(cat pre_merge_y)"
 '
 
-cat <<EOF | sort >expect_notes_z
+sort <<EOF >expect_notes_z
 00494adecf2d9635a02fa431308d67993f853968 $commit_sha4
 283b48219aee9a4105f6cab337e789065c82c2b9 $commit_sha2
 0a81da8956346e19bcb27a906f04af327e03e31b $commit_sha1
@@ -230,7 +230,7 @@ test_expect_success 'cannot do merge w/conflicts when previous merge is unfinish
 
 # Setup non-conflicting merge between x and new notes ref w
 
-cat <<EOF | sort >expect_notes_w
+sort <<EOF >expect_notes_w
 ceefa674873670e7ecd131814d909723cce2b669 $commit_sha2
 f75d1df88cbfe4258d49852f26cfc83f2ad4494b $commit_sha1
 EOF
@@ -257,7 +257,7 @@ test_expect_success 'setup unrelated notes ref (w)' '
 	verify_notes w
 '
 
-cat <<EOF | sort >expect_notes_w
+sort <<EOF >expect_notes_w
 6e8e3febca3c2bb896704335cc4d0c34cb2f8715 $commit_sha4
 e5388c10860456ee60673025345fe2e153eb8cf8 $commit_sha3
 ceefa674873670e7ecd131814d909723cce2b669 $commit_sha2
@@ -290,7 +290,7 @@ test_expect_success 'can do merge without conflicts even if previous merge is un
 	verify_notes y
 '
 
-cat <<EOF | sort >expect_notes_m
+sort <<EOF >expect_notes_m
 021faa20e931fb48986ffc6282b4bb05553ac946 $commit_sha4
 5772f42408c0dd6f097a7ca2d24de0e78d1c46b1 $commit_sha3
 283b48219aee9a4105f6cab337e789065c82c2b9 $commit_sha2
@@ -429,7 +429,7 @@ test_expect_success 'redo merge of z into m (== y) with default ("manual") resol
 	test "$(git rev-parse refs/notes/m)" = "$(cat pre_merge_y)"
 '
 
-cat <<EOF | sort >expect_notes_m
+sort <<EOF >expect_notes_m
 304dfb4325cf243025b9957486eb605a9b51c199 $commit_sha5
 283b48219aee9a4105f6cab337e789065c82c2b9 $commit_sha2
 0a59e787e6d688aa6309e56e8c1b89431a0fc1c1 $commit_sha1

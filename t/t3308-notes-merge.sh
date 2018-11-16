@@ -39,7 +39,7 @@ verify_notes () {
 	test_cmp "expect_log_$notes_ref" "output_log_$notes_ref"
 }
 
-cat <<EOF | sort >expect_notes_x
+sort <<EOF >expect_notes_x
 5e93d24084d32e1cb61f7070505b9d2530cca987 $commit_sha4
 8366731eeee53787d2bdf8fc1eff7d94757e8da0 $commit_sha3
 eede89064cd42441590d6afec6c37b321ada3389 $commit_sha2
@@ -125,7 +125,7 @@ test_expect_success 'merge previous notes commit (y^ => y) => No-op' '
 	test "$pre_state" = "$(git rev-parse refs/notes/y)"
 '
 
-cat <<EOF | sort >expect_notes_y
+sort <<EOF >expect_notes_y
 0f2efbd00262f2fd41dfae33df8765618eeacd99 $commit_sha5
 dec2502dac3ea161543f71930044deff93fa945c $commit_sha4
 4069cdb399fd45463ec6eef8e051a16a03592d91 $commit_sha3
@@ -192,7 +192,7 @@ test_expect_success 'merge empty notes ref (z => y)' '
 	test "$(git rev-parse refs/notes/x)" != "$(git rev-parse refs/notes/y)"
 '
 
-cat <<EOF | sort >expect_notes_y
+sort <<EOF >expect_notes_y
 0f2efbd00262f2fd41dfae33df8765618eeacd99 $commit_sha5
 dec2502dac3ea161543f71930044deff93fa945c $commit_sha4
 4069cdb399fd45463ec6eef8e051a16a03592d91 $commit_sha3
@@ -230,7 +230,7 @@ test_expect_success 'change notes on other notes ref (y)' '
 	verify_notes y
 '
 
-cat <<EOF | sort >expect_notes_x
+sort <<EOF >expect_notes_x
 0f2efbd00262f2fd41dfae33df8765618eeacd99 $commit_sha5
 1f257a3a90328557c452f0817d6cc50c89d315d4 $commit_sha4
 daa55ffad6cb99bf64226532147ffcaf5ce8bdd1 $commit_sha1
@@ -261,7 +261,7 @@ test_expect_success 'change notes on notes ref (x)' '
 	verify_notes x
 '
 
-cat <<EOF | sort >expect_notes_x
+sort <<EOF >expect_notes_x
 0f2efbd00262f2fd41dfae33df8765618eeacd99 $commit_sha5
 1f257a3a90328557c452f0817d6cc50c89d315d4 $commit_sha4
 d000d30e6ddcfce3a8122c403226a2ce2fd04d9d $commit_sha2
@@ -295,7 +295,7 @@ test_expect_success 'merge y into x => Non-conflicting 3-way merge' '
 	verify_notes y
 '
 
-cat <<EOF | sort >expect_notes_w
+sort <<EOF >expect_notes_w
 05a4927951bcef347f51486575b878b2b60137f2 $commit_sha3
 d000d30e6ddcfce3a8122c403226a2ce2fd04d9d $commit_sha2
 EOF
@@ -325,7 +325,7 @@ test_expect_success 'create notes on new, separate notes ref (w)' '
 	verify_notes w
 '
 
-cat <<EOF | sort >expect_notes_x
+sort <<EOF >expect_notes_x
 0f2efbd00262f2fd41dfae33df8765618eeacd99 $commit_sha5
 1f257a3a90328557c452f0817d6cc50c89d315d4 $commit_sha4
 05a4927951bcef347f51486575b878b2b60137f2 $commit_sha3

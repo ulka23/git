@@ -67,7 +67,7 @@ test_expect_success 'setup merge base (x)' '
 	git notes add -m "x notes on 15th commit" 15th
 '
 
-cat <<EOF | sort >expect_notes_x
+sort <<EOF >expect_notes_x
 457a85d6c814ea208550f15fcc48f804ac8dc023 $commit_sha15
 b0c95b954301d69da2bc3723f4cb1680d355937c $commit_sha14
 5d30216a129eeffa97d9694ffe8c74317a560315 $commit_sha13
@@ -140,7 +140,7 @@ test_expect_success 'setup local branch (y)' '
 	git notes add -f -m "y notes on 15th commit" 15th
 '
 
-cat <<EOF | sort >expect_notes_y
+sort <<EOF >expect_notes_y
 68b8630d25516028bed862719855b3d6768d7833 $commit_sha15
 5de7ea7ad4f47e7ff91989fb82234634730f75df $commit_sha14
 3a631fdb6f41b05b55d8f4baf20728ba8f6fccbc $commit_sha13
@@ -213,7 +213,7 @@ test_expect_success 'setup remote branch (z)' '
 	git notes add -f -m "z notes on 15th commit" 15th
 '
 
-cat <<EOF | sort >expect_notes_z
+sort <<EOF >expect_notes_z
 9b4b2c61f0615412da3c10f98ff85b57c04ec765 $commit_sha15
 5de7ea7ad4f47e7ff91989fb82234634730f75df $commit_sha14
 5d30216a129eeffa97d9694ffe8c74317a560315 $commit_sha13
@@ -305,7 +305,7 @@ test_expect_success 'merge z into y with invalid configuration option => Fail/No
 	verify_notes y y
 '
 
-cat <<EOF | sort >expect_notes_ours
+sort <<EOF >expect_notes_ours
 68b8630d25516028bed862719855b3d6768d7833 $commit_sha15
 5de7ea7ad4f47e7ff91989fb82234634730f75df $commit_sha14
 3a631fdb6f41b05b55d8f4baf20728ba8f6fccbc $commit_sha13
@@ -394,7 +394,7 @@ test_expect_success 'reset to pre-merge state (y)' '
 	verify_notes y y
 '
 
-cat <<EOF | sort >expect_notes_theirs
+sort <<EOF >expect_notes_theirs
 9b4b2c61f0615412da3c10f98ff85b57c04ec765 $commit_sha15
 5de7ea7ad4f47e7ff91989fb82234634730f75df $commit_sha14
 3a631fdb6f41b05b55d8f4baf20728ba8f6fccbc $commit_sha13
@@ -472,7 +472,7 @@ test_expect_success 'reset to pre-merge state (y)' '
 	verify_notes y y
 '
 
-cat <<EOF | sort >expect_notes_union
+sort <<EOF >expect_notes_union
 7c4e546efd0fe939f876beb262ece02797880b54 $commit_sha15
 5de7ea7ad4f47e7ff91989fb82234634730f75df $commit_sha14
 3a631fdb6f41b05b55d8f4baf20728ba8f6fccbc $commit_sha13
@@ -573,7 +573,7 @@ test_expect_success 'merge z into y with "manual" per-ref only checks specific r
 	verify_notes y y
 '
 
-cat <<EOF | sort >expect_notes_union2
+sort <<EOF >expect_notes_union2
 d682107b8bf7a7aea1e537a8d5cb6a12b60135f1 $commit_sha15
 5de7ea7ad4f47e7ff91989fb82234634730f75df $commit_sha14
 3a631fdb6f41b05b55d8f4baf20728ba8f6fccbc $commit_sha13
@@ -647,7 +647,7 @@ test_expect_success 'reset to pre-merge state (z)' '
 	verify_notes z z
 '
 
-cat <<EOF | sort >expect_notes_cat_sort_uniq
+sort <<EOF >expect_notes_cat_sort_uniq
 6be90240b5f54594203e25d9f2f64b7567175aee $commit_sha15
 5de7ea7ad4f47e7ff91989fb82234634730f75df $commit_sha14
 3a631fdb6f41b05b55d8f4baf20728ba8f6fccbc $commit_sha13
