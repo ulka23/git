@@ -123,7 +123,7 @@ test_expect_success 'missing submodule alternate fails clone and submodule updat
 		test_must_fail git submodule update --init &&
 		# and we have no alternates:
 		test_must_fail test_alternate_is_used .git/modules/sub/objects/info/alternates sub &&
-		test_must_fail test_path_is_file sub/file1
+		test_path_is_missing sub/file1
 	)
 '
 
