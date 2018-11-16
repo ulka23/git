@@ -117,7 +117,7 @@ EOF
 
 test_expect_success 'set up faked signed tag' '
 
-	cat signed-tag-import | git fast-import
+	git fast-import <signed-tag-import
 
 '
 
@@ -230,9 +230,8 @@ test_expect_success 'fast-export -C -C | fast-import' '
 	git --git-dir=new/.git init &&
 	git fast-export -C -C --signed-tags=strip --all > output &&
 	grep "^C file2 file4\$" output &&
-	cat output |
 	(cd new &&
-	 git fast-import &&
+	 git fast-import <../output &&
 	 test $ENTRY = $(git rev-parse --verify refs/heads/copy))
 
 '

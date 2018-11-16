@@ -189,8 +189,8 @@ index e69de29..6178079 100644
 EOF
 
 test_expect_success 'patch-id handles no-nl-at-eof markers' '
-	cat nonl | calc_patch_id nonl &&
-	cat withnl | calc_patch_id withnl &&
+	calc_patch_id nonl <nonl &&
+	calc_patch_id withnl <withnl &&
 	test_cmp patch-id_nonl patch-id_withnl
 '
 test_done
