@@ -114,8 +114,8 @@ do
 		test_when_finished "rm -f crlf.utf${i}.raw lf.utf${i}.raw" &&
 		test_when_finished "git reset --hard HEAD^" &&
 
-		cat lf.utf8.raw | iconv -f UTF-8 -t UTF-${i} >lf.utf${i}.raw &&
-		cat crlf.utf8.raw | iconv -f UTF-8 -t UTF-${i} >crlf.utf${i}.raw &&
+		iconv -f UTF-8 -t UTF-${i} lf.utf8.raw >lf.utf${i}.raw &&
+		iconv -f UTF-8 -t UTF-${i} crlf.utf8.raw >crlf.utf${i}.raw &&
 		cp crlf.utf${i}.raw eol.utf${i} &&
 
 		cat >expectIndexLF <<-EOF &&

@@ -287,7 +287,7 @@ test_expect_success 'setup patch' '
 # Expected output, diff is similar to the patch but w/ diff at the top
 test_expect_success 'setup expected' '
 	echo diff --git a/file b/file >expected &&
-	cat patch |sed "/^index/s/ 100644/ 100755/" >>expected &&
+	sed "/^index/s/ 100644/ 100755/" patch >>expected &&
 	cat >expected-output <<-\EOF
 	--- a/file
 	+++ b/file
