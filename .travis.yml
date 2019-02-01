@@ -31,6 +31,8 @@ matrix:
       script: ci/run-linux32-docker.sh
     - env: jobname=StaticAnalysis
       os: linux
+      services:
+        - docker
       compiler:
       script: ci/run-static-analysis.sh
       after_failure:

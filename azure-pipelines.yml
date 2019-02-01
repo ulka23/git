@@ -353,12 +353,11 @@ jobs:
   - bash: |
        test "$GITFILESHAREPWD" = '$(gitfileshare.pwd)' || ci/mount-fileshare.sh //gitfileshare.file.core.windows.net/test-cache gitfileshare "$GITFILESHAREPWD" "$HOME/test-cache" || exit 1
 
-       sudo apt-get update &&
-       sudo apt-get install -y coccinelle &&
+       docker pull szeder/coccinelle:1.0.7-1 &&
 
        export jobname=StaticAnalysis &&
 
-       ci/run-static-analysis.sh || exit 1
+       sudo AGENT_OS="$AGENT_OS" BUILD_BUILDNUMBER="$BUILD_BUILDNUMBER" BUILD_REPOSITORY_URI="$BUILD_REPOSITORY_URI" BUILD_SOURCEBRANCH="$BUILD_SOURCEBRANCH" BUILD_SOURCEVERSION="$BUILD_SOURCEVERSION" SYSTEM_PHASENAME="$SYSTEM_PHASENAME" SYSTEM_TASKDEFINITIONSURI="$SYSTEM_TASKDEFINITIONSURI" SYSTEM_TEAMPROJECT="$SYSTEM_TEAMPROJECT" MAKEFLAGS="$MAKEFLAGS" bash -lxc ci/run-static-analysis.sh $(id -u):$(id -g) || exit 1
 
        test "$GITFILESHAREPWD" = '$(gitfileshare.pwd)' || sudo umount "$HOME/test-cache" || exit 1
     displayName: 'ci/run-static-analysis.sh'

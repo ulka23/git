@@ -48,8 +48,7 @@ osx-clang|osx-gcc)
 	esac
 	;;
 StaticAnalysis)
-	sudo apt-get -q update
-	sudo apt-get -q -y install coccinelle
+	docker pull szeder/coccinelle:1.0.7-1
 	;;
 Documentation)
 	sudo apt-get -q update
