@@ -41,6 +41,9 @@ osx-clang|osx-gcc)
 	brew link --force gettext
 	brew install caskroom/cask/perforce
 	;;
+Linux32)
+	docker pull szeder/ubuntu32-for-git-ci:16.04-1
+	;;
 StaticAnalysis)
 	sudo apt-get -q update
 	sudo apt-get -q -y install coccinelle
