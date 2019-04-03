@@ -12,11 +12,19 @@ matrix:
     - env: jobname=linux-gcc
       os: linux
       compiler: gcc
-    - env: jobname=osx-clang
+    - env: jobname=osx-clang TEST_SELECTION="t[0-4][0-9][0-9][0-9]-*.sh"
       os: osx
       osx_image: xcode10.1
       compiler: clang
-    - env: jobname=osx-gcc
+    - env: jobname=osx-clang TEST_SELECTION="t[5-9][0-9][0-9][0-9]-*.sh"
+      os: osx
+      osx_image: xcode10.1
+      compiler: clang
+    - env: jobname=osx-gcc TEST_SELECTION="t[0-4][0-9][0-9][0-9]-*.sh"
+      os: osx
+      osx_image: xcode10.1
+      compiler: gcc
+    - env: jobname=osx-gcc TEST_SELECTION="t[5-9][0-9][0-9][0-9]-*.sh"
       os: osx
       osx_image: xcode10.1
       compiler: gcc
