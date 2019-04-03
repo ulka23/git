@@ -4,18 +4,22 @@ cache:
   directories:
     - $HOME/travis-cache
 
-os:
-  - linux
-  - osx
-
-osx_image: xcode10.1
-
-compiler:
-  - clang
-  - gcc
-
 matrix:
   include:
+    - env: jobname=linux-clang
+      os: linux
+      compiler: clang
+    - env: jobname=linux-gcc
+      os: linux
+      compiler: gcc
+    - env: jobname=osx-clang
+      os: osx
+      osx_image: xcode10.1
+      compiler: clang
+    - env: jobname=osx-gcc
+      os: osx
+      osx_image: xcode10.1
+      compiler: gcc
     - env: jobname=GIT_TEST_GETTEXT_POISON
       os: linux
       compiler:
