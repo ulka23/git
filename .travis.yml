@@ -19,12 +19,10 @@ matrix:
     - env: jobname=GIT_TEST_GETTEXT_POISON
       os: linux
       compiler:
-      addons:
       before_install:
     - env: jobname=Linux32
       os: linux
       compiler:
-      addons:
       services:
         - docker
       before_install:
