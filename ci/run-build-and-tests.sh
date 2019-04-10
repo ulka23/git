@@ -5,6 +5,8 @@
 
 . ${0%/*}/lib.sh
 
+python --version
+
 case "$CI_OS_NAME" in
 windows*) cmd //c mklink //j t\\.prove "$(cygpath -aw "$cache_dir/.prove")";;
 *) ln -s "$cache_dir/.prove" t/.prove;;
