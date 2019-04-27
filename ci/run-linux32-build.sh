@@ -51,7 +51,9 @@ else
 fi
 
 # Build and test
-linux32 --32bit i386 su -m -l $CI_USER -c '
+set
+linux32 --32bit i386 su -l $CI_USER -c '
+	set
 	set -ex
 	cd /usr/src/git
 	test -n "$cache_dir" && ln -s "$cache_dir/.prove" t/.prove
