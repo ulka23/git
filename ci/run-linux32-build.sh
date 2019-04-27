@@ -52,7 +52,7 @@ fi
 
 # Build and test
 set
-linux32 --32bit i386 su -l $CI_USER -c '
+linux32 --32bit i386 su $CI_USER -c '
 	set
 	set -ex
 	cd /usr/src/git
