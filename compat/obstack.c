@@ -16,13 +16,9 @@
    License along with the GNU C Library; if not, see
    <https://www.gnu.org/licenses/>.  */
 
-
-#ifdef _LIBC
-# include <obstack.h>
-#else
-# include <config.h>
-# include "obstack.h"
-#endif
+#include "git-compat-util.h"
+#include <gettext.h>
+#include "obstack.h"
 
 /* NOTE BEFORE MODIFYING THIS FILE: _OBSTACK_INTERFACE_VERSION in
    obstack.h must be incremented whenever callers compiled using an old
@@ -305,23 +301,6 @@ _obstack_memory_used (struct obstack *h)
 /* Define the error handler.  */
 #  include <stdio.h>
 
-/* Exit value used when 'print_and_abort' is used.  */
-#  ifdef _LIBC
-int obstack_exit_failure = EXIT_FAILURE;
-#  else
-#   include "exitfail.h"
-#   define obstack_exit_failure exit_failure
-#  endif
-
-#  ifdef _LIBC
-#   include <libintl.h>
-#  else
-#   include "gettext.h"
-#  endif
-#  ifndef _
-#   define _(msgid) gettext (msgid)
-#  endif
-
 #  ifdef _LIBC
 #   include <libio/iolibio.h>
 #  endif
@@ -339,7 +318,7 @@ print_and_abort (void)
 #  else
   fprintf (stderr, "%s\n", _("memory exhausted"));
 #  endif
-  exit (obstack_exit_failure);
+  exit (1);
 }
 
 /* The functions allocating more room by calling 'obstack_chunk_alloc'
