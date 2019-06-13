@@ -219,15 +219,14 @@ extern int _obstack_begin_1 (struct obstack *,
                              _OBSTACK_SIZE_T, _OBSTACK_SIZE_T,
                              void *(*) (void *, size_t),
                              void (*) (void *, void *), void *);
-extern _OBSTACK_SIZE_T _obstack_memory_used (struct obstack *)
-  __attribute_pure__;
+extern _OBSTACK_SIZE_T _obstack_memory_used (struct obstack *);
 
 
 /* Error handler called when 'obstack_chunk_alloc' failed to allocate
    more memory.  This can be set to a user defined function which
    should either abort gracefully or use longjump - but shouldn't
    return.  The default action is to print a message and abort.  */
-extern __attribute_noreturn__ void (*obstack_alloc_failed_handler) (void);
+extern void (*obstack_alloc_failed_handler) (void);
 
 /* Exit value used when 'print_and_abort' is used.  */
 extern int obstack_exit_failure;
