@@ -18,6 +18,21 @@ linux-clang|linux-gcc)
 	linux-gcc)
 		sudo apt-get -q -y install gcc-8
 		;;
+	linux-clang)
+		mkdir --parents "$P4_OLD_DIR"
+		pushd "$P4_OLD_DIR"
+			wget --quiet "${P4_BASE_URL}r$LINUX_P4_OLD_VERSION/bin.linux26x86_64/p4d"
+			wget --quiet "${P4_BASE_URL}r$LINUX_P4_OLD_VERSION/bin.linux26x86_64/p4"
+			chmod u+x p4d
+			chmod u+x p4
+		popd
+
+		mkdir --parents "$GIT_LFS_OLD_DIR"
+		pushd "$GIT_LFS_OLD_DIR"
+			wget --quiet "$GIT_LFS_BASE_URL/v$LINUX_GIT_LFS_OLD_VERSION/git-lfs-linux-amd64-$LINUX_GIT_LFS_OLD_VERSION.tar.gz"
+			tar --extract --gunzip --file "git-lfs-linux-amd64-$LINUX_GIT_LFS_OLD_VERSION.tar.gz"
+			cp git-lfs-$LINUX_GIT_LFS_OLD_VERSION/git-lfs .
+		;;
 	esac
 
 	p4_version=$(curl --silent --show-error "$P4_BASE_URL" |
