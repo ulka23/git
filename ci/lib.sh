@@ -162,12 +162,11 @@ linux-clang|linux-gcc)
 
 	export GIT_TEST_HTTPD=YesPlease
 
-	# The Linux build installs the defined dependency versions below.
-	# The OS X build installs much more recent versions, whichever
-	# were recorded in the Homebrew database upon creating the OS X
-	# image.
+	# The Linux build installs the latest available dependency versions.
+	# The OS X build installs recent-ish versions, whichever were
+	# recorded in the Homebrew database upon creating the OS X image.
 	# Keep that in mind when you encounter a broken OS X build!
-	LINUX_P4_VERSION="16.2"
+	LINUX_P4_OLD_VERSION="16.2"
 	LINUX_GIT_LFS_VERSION="1.5.2"
 
 	P4_DIR="$HOME/custom/p4"

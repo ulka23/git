@@ -5,7 +5,7 @@
 
 . ${0%/*}/lib.sh
 
-P4WHENCE=http://filehost.perforce.com/perforce/r$LINUX_P4_VERSION
+P4_BASE_URL=http://filehost.perforce.com/perforce/
 LFSWHENCE=https://github.com/github/git-lfs/releases/download/v$LINUX_GIT_LFS_VERSION
 
 case "$jobname" in
@@ -19,10 +19,18 @@ linux-clang|linux-gcc)
 		;;
 	esac
 
+	p4_version=$(curl --silent --show-error "$P4_BASE_URL" |
+		sed -n -e 's/.*href="r\([0-9][0-9]\.[0-9]\)\/\?".*/\1/p' |
+		tail -n1)
+	if test -z "$p4_version"
+	then
+		echo "error: couldn't figure out latest P4 version"
+		exit 1
+	fi
 	mkdir --parents "$P4_DIR"
 	pushd "$P4_DIR"
-		wget --quiet "$P4WHENCE/bin.linux26x86_64/p4d"
-		wget --quiet "$P4WHENCE/bin.linux26x86_64/p4"
+		wget --quiet "${P4_BASE_URL}r$p4_version/bin.linux26x86_64/p4d"
+		wget --quiet "${P4_BASE_URL}r$p4_version/bin.linux26x86_64/p4"
 		chmod u+x p4d
 		chmod u+x p4
 	popd
