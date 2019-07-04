@@ -26,7 +26,7 @@ linux-clang)
 	PATH="$P4_OLD_DIR:$GIT_LFS_OLD_DIR:$PATH"
 	p4 -V
 	git-lfs version
-	make test T='t98*-git-p4-*.sh' GIT_PROVE_OPTS="${GIT_PROVE_OPTS%%--state=*}"
+	time make test T='t98*-git-p4-*.sh' GIT_PROVE_OPTS="${GIT_PROVE_OPTS%%--state=*}"
 	;;
 esac
 
