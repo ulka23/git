@@ -6,7 +6,8 @@
 . ${0%/*}/lib.sh
 
 P4_BASE_URL=http://filehost.perforce.com/perforce/
-LFSWHENCE=https://github.com/github/git-lfs/releases/download/v$LINUX_GIT_LFS_VERSION
+GIT_LFS_LATEST_URL=https://github.com/git-lfs/git-lfs/releases/latest
+GIT_LFS_BASE_URL=https://github.com/github/git-lfs/releases/download
 
 case "$jobname" in
 linux-clang|linux-gcc)
@@ -34,11 +35,38 @@ linux-clang|linux-gcc)
 		chmod u+x p4d
 		chmod u+x p4
 	popd
+
+	git_lfs_version=$(curl --silent --show-error --head --location \
+		--write-out "%{url_effective}\n" --output /dev/null \
+		"$GIT_LFS_LATEST_URL" | sed -e 's%.*/v%%')
+	if test -z "$git_lfs_version"
+	then
+		echo "error: couldn't figure out latest Git-LFS version"
+		exit 1
+	fi
 	mkdir --parents "$GIT_LFS_DIR"
 	pushd "$GIT_LFS_DIR"
-		wget --quiet "$LFSWHENCE/git-lfs-linux-amd64-$LINUX_GIT_LFS_VERSION.tar.gz"
-		tar --extract --gunzip --file "git-lfs-linux-amd64-$LINUX_GIT_LFS_VERSION.tar.gz"
-		cp git-lfs-$LINUX_GIT_LFS_VERSION/git-lfs .
+		# Unfortunately, the name and contents of the Git-LFS release
+		# tarballs are inconsistent across versions:
+		# Up until Git-LFS 2.4.2 the tarballs were named as
+		# 'git-lfs-linux-amd64-X.Y.Z.tar.gz' and included a directory
+		# 'git-lfs-X.Y.Z' containing the 'git-lfs' binary.
+		# Since then all release tarballs are named as
+		# 'git-lfs-linux-amd64-vX.Y.Z.tar.gz' (note the 'v' in front
+		# of the version number) and contain all files directly in
+		# the archive's root directory.
+		# Who knows what the future might bring, so let's try to deal
+		# with both cases.
+		git_lfs_tarball=git-lfs-linux-amd64-v$git_lfs_version.tar.gz
+		if wget --quiet "$GIT_LFS_BASE_URL/v$git_lfs_version/$git_lfs_tarball"
+		then
+			tar --extract --gunzip --file "$git_lfs_tarball"
+		else
+			git_lfs_tarball=git-lfs-linux-amd64-$git_lfs_version.tar.gz
+			wget --quiet "$GIT_LFS_BASE_URL/v$git_lfs_version/$git_lfs_tarball"
+			tar --extract --gunzip --file "$git_lfs_tarball"
+			cp git-lfs-$git_lfs_version/git-lfs .
+		fi
 	popd
 	;;
 osx-clang|osx-gcc)

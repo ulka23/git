@@ -167,7 +167,7 @@ linux-clang|linux-gcc)
 	# recorded in the Homebrew database upon creating the OS X image.
 	# Keep that in mind when you encounter a broken OS X build!
 	LINUX_P4_OLD_VERSION="16.2"
-	LINUX_GIT_LFS_VERSION="1.5.2"
+	LINUX_GIT_LFS_OLD_VERSION="1.5.2"
 
 	P4_DIR="$HOME/custom/p4"
 	GIT_LFS_DIR="$HOME/custom/git-lfs"
