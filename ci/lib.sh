@@ -170,9 +170,9 @@ linux-clang|linux-gcc)
 	LINUX_P4_VERSION="16.2"
 	LINUX_GIT_LFS_VERSION="1.5.2"
 
-	P4_PATH="$HOME/custom/p4"
-	GIT_LFS_PATH="$HOME/custom/git-lfs"
-	PATH="$GIT_LFS_PATH:$P4_PATH:$PATH"
+	P4_DIR="$HOME/custom/p4"
+	GIT_LFS_DIR="$HOME/custom/git-lfs"
+	PATH="$GIT_LFS_DIR:$P4_DIR:$PATH"
 	;;
 osx-clang|osx-gcc)
 	if [ "$jobname" = osx-gcc ]
