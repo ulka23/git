@@ -135,10 +135,12 @@ test_expect_success GPGSM 'verify signatures with --raw x509' '
 
 test_expect_success GPG 'verify multiple tags' '
 	tags="fourth-signed sixth-signed seventh-signed" &&
+	>expect.stdout 2>expect.stderr.1 &&
 	for i in $tags
 	do
-		git verify-tag -v --raw $i || return 1
-	done >expect.stdout 2>expect.stderr.1 &&
+		git verify-tag -v --raw $i >>expect.stdout 2>>expect.stderr.1 ||
+		return 1
+	done &&
 	grep "^.GNUPG:." <expect.stderr.1 >expect.stderr &&
 	git verify-tag -v --raw $tags >actual.stdout 2>actual.stderr.1 &&
 	grep "^.GNUPG:." <actual.stderr.1 >actual.stderr &&
@@ -148,10 +150,12 @@ test_expect_success GPG 'verify multiple tags' '
 
 test_expect_success GPGSM 'verify multiple tags x509' '
 	tags="seventh-signed nineth-signed-x509" &&
+	>expect.stdout 2>expect.stderr.1 &&
 	for i in $tags
 	do
-		git verify-tag -v --raw $i || return 1
-	done >expect.stdout 2>expect.stderr.1 &&
+		git verify-tag -v --raw $i >>expect.stdout 2>>expect.stderr.1 ||
+		return 1
+	done &&
 	grep "^.GNUPG:." <expect.stderr.1 >expect.stderr &&
 	git verify-tag -v --raw $tags >actual.stdout 2>actual.stderr.1 &&
 	grep "^.GNUPG:." <actual.stderr.1 >actual.stderr &&
