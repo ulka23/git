@@ -5772,6 +5772,13 @@ int diff_queue_is_empty(void)
 	return 1;
 }
 
+void free_diff_queue(struct diff_queue_struct *q)
+{
+	int i;
+	for (i = 0; i < q->nr; i++)
+		diff_free_filepair(q->queue[i]);
+}
+
 #if DIFF_DEBUG
 void diff_debug_filespec(struct diff_filespec *s, int x, const char *one)
 {
@@ -6136,11 +6143,9 @@ static int diff_get_patch_id(struct diff_options *options, struct object_id *oid
 int diff_flush_patch_id(struct diff_options *options, struct object_id *oid, int diff_header_only, int stable)
 {
 	struct diff_queue_struct *q = &diff_queued_diff;
-	int i;
 	int result = diff_get_patch_id(options, oid, diff_header_only, stable);
 
-	for (i = 0; i < q->nr; i++)
-		diff_free_filepair(q->queue[i]);
+	free_diff_queue(q);
 
 	free(q->queue);
 	DIFF_QUEUE_CLEAR(q);
@@ -6342,8 +6347,7 @@ void diff_flush(struct diff_options *options)
 	if (output_format & DIFF_FORMAT_CALLBACK)
 		options->format_callback(q, options, options->format_callback_data);
 
-	for (i = 0; i < q->nr; i++)
-		diff_free_filepair(q->queue[i]);
+	free_diff_queue(q);
 free_queue:
 	free(q->queue);
 	DIFF_QUEUE_CLEAR(q);
@@ -6399,8 +6403,7 @@ static void diffcore_apply_filter(struct diff_options *options)
 		 * function, but first clear the current entries
 		 * in the queue.
 		 */
-		for (i = 0; i < q->nr; i++)
-			diff_free_filepair(q->queue[i]);
+		free_diff_queue(q);
 	}
 	else {
 		/* Only the matching ones */
