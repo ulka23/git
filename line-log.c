@@ -821,11 +821,15 @@ static void queue_diffs(struct line_log_data *range,
 			struct diff_queue_struct *queue,
 			struct commit *commit, struct commit *parent)
 {
+	struct object_id *tree_oid, *parent_tree_oid;
+
 	assert(commit);
 
+	tree_oid = get_commit_tree_oid(commit);
+	parent_tree_oid = parent ? get_commit_tree_oid(parent) : NULL;
+
 	DIFF_QUEUE_CLEAR(&diff_queued_diff);
-	diff_tree_oid(parent ? get_commit_tree_oid(parent) : NULL,
-		      get_commit_tree_oid(commit), "", opt);
+	diff_tree_oid(parent_tree_oid, tree_oid, "", opt);
 	if (opt->detect_rename) {
 		filter_diffs_for_paths(range, 1);
 		if (diff_might_be_rename())
