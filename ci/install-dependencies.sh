@@ -40,7 +40,7 @@ osx-clang|osx-gcc)
 	test -z "$BREW_INSTALL_PACKAGES" ||
 	brew install $BREW_INSTALL_PACKAGES
 	brew link --force gettext
-	brew install caskroom/cask/perforce
+	brew cask install perforce
 	case "$jobname" in
 	osx-gcc)
 		brew link gcc@8
