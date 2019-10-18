@@ -103,7 +103,7 @@ struct common_dir {
 	unsigned is_dir:1;
 	/* Not common even though its parent is */
 	unsigned exclude:1;
-	const char *dirname;
+	const char *path;
 };
 
 static struct common_dir common_list[] = {
@@ -326,8 +326,8 @@ static void init_common_trie(void)
 	if (common_trie_done_setup)
 		return;
 
-	for (p = common_list; p->dirname; p++)
-		add_to_trie(&common_trie, p->dirname, p);
+	for (p = common_list; p->path; p++)
+		add_to_trie(&common_trie, p->path, p);
 
 	common_trie_done_setup = 1;
 }
@@ -371,8 +371,8 @@ void report_linked_checkout_garbage(void)
 		return;
 	strbuf_addf(&sb, "%s/", get_git_dir());
 	len = sb.len;
-	for (p = common_list; p->dirname; p++) {
-		const char *path = p->dirname;
+	for (p = common_list; p->path; p++) {
+		const char *path = p->path;
 		if (p->ignore_garbage)
 			continue;
 		strbuf_setlen(&sb, len);
