@@ -102,35 +102,35 @@ struct common_dir {
 	unsigned ignore_garbage:1;
 	unsigned is_dir:1;
 	/* Not common even though its parent is */
-	unsigned exclude:1;
+	unsigned is_common:1;
 	const char *path;
 };
 
 static struct common_dir common_list[] = {
-	{ 0, 1, 0, "branches" },
-	{ 0, 1, 0, "common" },
-	{ 0, 1, 0, "hooks" },
-	{ 0, 1, 0, "info" },
-	{ 0, 0, 1, "info/sparse-checkout" },
-	{ 1, 1, 0, "logs" },
-	{ 1, 0, 1, "logs/HEAD" },
-	{ 0, 1, 1, "logs/refs/bisect" },
-	{ 0, 1, 1, "logs/refs/rewritten" },
-	{ 0, 1, 1, "logs/refs/worktree" },
-	{ 0, 1, 0, "lost-found" },
-	{ 0, 1, 0, "objects" },
-	{ 0, 1, 0, "refs" },
-	{ 0, 1, 1, "refs/bisect" },
-	{ 0, 1, 1, "refs/rewritten" },
-	{ 0, 1, 1, "refs/worktree" },
-	{ 0, 1, 0, "remotes" },
-	{ 0, 1, 0, "worktrees" },
-	{ 0, 1, 0, "rr-cache" },
-	{ 0, 1, 0, "svn" },
-	{ 0, 0, 0, "config" },
-	{ 1, 0, 0, "gc.pid" },
-	{ 0, 0, 0, "packed-refs" },
-	{ 0, 0, 0, "shallow" },
+	{ 0, 1, 1, "branches" },
+	{ 0, 1, 1, "common" },
+	{ 0, 1, 1, "hooks" },
+	{ 0, 1, 1, "info" },
+	{ 0, 0, 0, "info/sparse-checkout" },
+	{ 1, 1, 1, "logs" },
+	{ 1, 0, 0, "logs/HEAD" },
+	{ 0, 1, 0, "logs/refs/bisect" },
+	{ 0, 1, 0, "logs/refs/rewritten" },
+	{ 0, 1, 0, "logs/refs/worktree" },
+	{ 0, 1, 1, "lost-found" },
+	{ 0, 1, 1, "objects" },
+	{ 0, 1, 1, "refs" },
+	{ 0, 1, 0, "refs/bisect" },
+	{ 0, 1, 0, "refs/rewritten" },
+	{ 0, 1, 0, "refs/worktree" },
+	{ 0, 1, 1, "remotes" },
+	{ 0, 1, 1, "worktrees" },
+	{ 0, 1, 1, "rr-cache" },
+	{ 0, 1, 1, "svn" },
+	{ 0, 0, 1, "config" },
+	{ 1, 0, 1, "gc.pid" },
+	{ 0, 0, 1, "packed-refs" },
+	{ 0, 0, 1, "shallow" },
 	{ 0, 0, 0, NULL }
 };
 
@@ -344,10 +344,10 @@ static int check_common(const char *unmatched, void *value, void *baton)
 		return 0;
 
 	if (dir->is_dir && (unmatched[0] == 0 || unmatched[0] == '/'))
-		return !dir->exclude;
+		return dir->is_common;
 
 	if (!dir->is_dir && unmatched[0] == 0)
-		return !dir->exclude;
+		return dir->is_common;
 
 	return 0;
 }
