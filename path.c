@@ -240,9 +240,15 @@ typedef int (*match_fn)(const char *unmatched, void *data, void *baton);
 
 /*
  * Search a trie for some key.  Find the longest /-or-\0-terminated
- * prefix of the key for which the trie contains a value.  Call fn
- * with the unmatched portion of the key and the found value, and
- * return its return value.  If there is no such prefix, return -1.
+ * prefix of the key for which the trie contains a value.  If there is
+ * no such prefix, return -1.  Otherwise call fn with the unmatched
+ * portion of the key and the found value.  If fn returns 0 or
+ * positive, then return its return value.  If fn returns negative,
+ * then call fn with the next-longest /-terminated prefix of the key
+ * for which the trie contains a value, and handle its return value
+ * the same way.  If there is no shorter /-terminated prefix with a
+ * value left, then return the negative return value of the most
+ * recent fn invocation.
  *
  * The key is partially normalized: consecutive slashes are skipped.
  *
