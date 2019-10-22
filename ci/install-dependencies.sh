@@ -34,23 +34,16 @@ linux-clang|linux-gcc)
 	popd
 	;;
 osx-clang|osx-gcc)
-	export HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALL_CLEANUP=1
 	# Uncomment this if you want to run perf tests:
 	# brew install gnu-time
-	test -z "$BREW_INSTALL_PACKAGES" ||
-	brew install $BREW_INSTALL_PACKAGES
-	brew cask install perforce || {
-		# Update the definitions and try again
-		git -C "$(brew --repository)"/Library/Taps/homebrew/homebrew-cask pull &&
-		brew cask install perforce
-	} ||
-	brew install caskroom/cask/perforce
-	case "$jobname" in
-	osx-gcc)
-		brew link gcc ||
-		brew link gcc@8
-		;;
-	esac
+	(
+		cd ~
+		ver=$(sw_vers | sed -n -e 's/^ProductVersion:[[:space:]]*\([0-9]*\.[0-9]*\)\..*/\1/p')
+		git clone --branch=ci-deps-osx-$ver --single-branch --depth=1 \
+			https://github.com/szeder/git deps
+		cd deps
+		./install.sh
+	)
 	;;
 StaticAnalysis)
 	sudo apt-get -q update
