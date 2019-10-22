@@ -185,6 +185,11 @@ osx-clang|osx-gcc)
 		export CC=gcc-8
 	fi
 
+	MAKEFLAGS="$MAKEFLAGS CPPFLAGS+=-I/usr/local/opt/gettext/include"
+	MAKEFLAGS="$MAKEFLAGS LDFLAGS+=-L/usr/local/opt/gettext/lib"
+
+	PATH=/usr/local/opt/gettext/bin:$PATH
+
 	# t9810 occasionally fails on Travis CI OS X
 	# t9816 occasionally fails with "TAP out of sequence errors" on
 	# Travis CI OS X
