@@ -106,7 +106,6 @@ then
 		echo "https://travis-ci.org/$CI_REPO_SLUG/jobs/$1"
 	}
 
-	BREW_INSTALL_PACKAGES="git-lfs gettext"
 	export GIT_PROVE_OPTS="--timer --jobs 3 --state=failed,slow,save"
 	export GIT_TEST_OPTS="--verbose-log -x --immediate"
 	MAKEFLAGS="$MAKEFLAGS --jobs=2"
@@ -131,7 +130,6 @@ then
 		echo "$SYSTEM_TASKDEFINITIONSURI$SYSTEM_TEAMPROJECT/_build/results?buildId=$1"
 	}
 
-	BREW_INSTALL_PACKAGES=gcc@8
 	export GIT_PROVE_OPTS="--timer --jobs 10 --state=failed,slow,save"
 	export GIT_TEST_OPTS="--verbose-log -x --write-junit-xml"
 	MAKEFLAGS="$MAKEFLAGS --jobs=10"
@@ -182,7 +180,7 @@ linux-clang|linux-gcc)
 osx-clang|osx-gcc)
 	if [ "$jobname" = osx-gcc ]
 	then
-		export CC=gcc-8
+		export CC=gcc-9
 	fi
 
 	MAKEFLAGS="$MAKEFLAGS CPPFLAGS+=-I/usr/local/opt/gettext/include"
