@@ -8,7 +8,13 @@ os:
   - linux
   - osx
 
-osx_image: xcode10.1
+osx_image:
+  - xcode10.1
+  - xcode10.2
+  - xcode10.3
+  - xcode11
+  - xcode11.1
+  - xcode11.2
 
 compiler:
   - clang
