@@ -964,6 +964,11 @@ test_run_ () {
 		test_eval_ "$test_cleanup"
 		teardown_malloc_check
 	fi
+	# on MINGW we override pwd
+	if test "$(command pwd)" != "$TRASH_DIRECTORY"
+	then
+		echo "$TEST_NUMBER.$test_count: '$(command pwd)'" >>"$TEST_DIRECTORY/CD-$TEST_NUMBER"
+	fi
 	if test "$verbose" = "t" && test -n "$HARNESS_ACTIVE"
 	then
 		echo ""

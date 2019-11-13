@@ -14,6 +14,8 @@ make
 case "$jobname" in
 linux-gcc)
 	make test
+	cat t/CD-*
+	rm -rf t/CD-*
 	export GIT_TEST_SPLIT_INDEX=yes
 	export GIT_TEST_FULL_IN_PACK_ARRAY=true
 	export GIT_TEST_OE_SIZE=10
@@ -21,6 +23,8 @@ linux-gcc)
 	export GIT_TEST_COMMIT_GRAPH=1
 	export GIT_TEST_MULTI_PACK_INDEX=1
 	make test
+	cat t/CD-*
+	rm -rf t/CD-*
 	;;
 linux-gcc-4.8)
 	# Don't run the tests; we only care about whether Git can be
@@ -29,6 +33,8 @@ linux-gcc-4.8)
 	;;
 *)
 	make test
+	cat t/CD-*
+	rm -rf t/CD-*
 	;;
 esac
 
