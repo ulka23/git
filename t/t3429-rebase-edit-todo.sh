@@ -14,7 +14,7 @@ test_expect_success 'setup' '
 test_expect_success 'rebase exec modifies rebase-todo' '
 	todo=.git/rebase-merge/git-rebase-todo &&
 	git rebase HEAD -x "echo exec touch F >>$todo" &&
-	test -e F
+	test_path_is_file F
 '
 
 test_expect_success SHA1 'loose object cache vs re-reading todo list' '
