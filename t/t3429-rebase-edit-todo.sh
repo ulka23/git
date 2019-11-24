@@ -52,4 +52,63 @@ test_expect_success 'todo is re-read after reword and squash' '
 	test_cmp expected actual
 '
 
+test_expect_success 'setup for racy tests' '
+	write_script sequence-editor <<-EOS &&
+		cat >.git/rebase-merge/git-rebase-todo <<-\EOF
+			r $(git rev-parse second^0) second
+			r $(git rev-parse third^0) third
+		EOF
+	EOS
+
+	write_script commit-editor <<-\EOS &&
+		read first_line <"$1" &&
+		echo "$first_line - edited" >"$1" &&
+
+		todo=.git/rebase-merge/git-rebase-todo &&
+
+		if test "$first_line" = second
+		then
+			old_size=$(wc -c <"$todo") &&
+			# Replace the "reword <full-oid> third" line with
+			# a different instruction of the same line length.
+			# Overwrite the file in-place, so the inode stays
+			# the same as well.
+			cat >"$todo" <<-EOF &&
+				exec echo 0123456789012345678901234 >exec-cmd-was-run
+			EOF
+			new_size=$(wc -c <"$todo") &&
+
+			if test $old_size -ne $new_size
+			then
+				echo >&2 "error: bug in the test script: the size of the todo list must not change"
+				exit 1
+			fi
+		fi
+	EOS
+
+	cat >expect <<-\EOF
+	second - edited
+	first
+	EOF
+'
+
+# This test can give false success if your machine is sufficiently
+# slow or all trials happened to happen on second boundaries.
+
+for trial in 0 1 2 3 4
+do
+	test_expect_success "racy todo re-read #$trial" '
+		git reset --hard third &&
+		rm -rf exec-cmd-was-run &&
+
+		GIT_SEQUENCE_EDITOR=./sequence-editor \
+		GIT_EDITOR=./commit-editor \
+		git rebase -i HEAD^^ &&
+
+		test_path_is_file exec-cmd-was-run &&
+		git log --format=%s >actual &&
+		test_cmp expect actual
+	'
+done
+
 test_done
