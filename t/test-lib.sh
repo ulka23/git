@@ -212,6 +212,8 @@ fi
 
 TEST_STRESS_JOB_SFX="${GIT_TEST_STRESS_JOB_NR:+.stress-$GIT_TEST_STRESS_JOB_NR}"
 TEST_NAME="$(basename "$0" .sh)"
+TEST_NUMBER="${TEST_NAME%%-*}"
+TEST_NUMBER="${TEST_NUMBER#t}"
 TEST_RESULTS_DIR="$TEST_OUTPUT_DIRECTORY/test-results"
 TEST_RESULTS_BASE="$TEST_RESULTS_DIR/$TEST_NAME$TEST_STRESS_JOB_SFX"
 TRASH_DIRECTORY="trash directory.$TEST_NAME$TEST_STRESS_JOB_SFX"
@@ -386,7 +388,6 @@ unset VISUAL EMAIL LANGUAGE COLUMNS $("$PERL_PATH" -e '
 	my @env = keys %ENV;
 	my $ok = join("|", qw(
 		TRACE
-		TR2_
 		DEBUG
 		TEST
 		.*_TEST
@@ -403,9 +404,13 @@ unset VISUAL EMAIL LANGUAGE COLUMNS $("$PERL_PATH" -e '
 unset XDG_CACHE_HOME
 unset XDG_CONFIG_HOME
 unset GITPERLLIB
-GIT_AUTHOR_EMAIL=author@example.com
+TEST_AUTHOR_LOCALNAME=author
+TEST_AUTHOR_DOMAIN=example.com
+GIT_AUTHOR_EMAIL=${TEST_AUTHOR_LOCALNAME}@${TEST_AUTHOR_DOMAIN}
 GIT_AUTHOR_NAME='A U Thor'
-GIT_COMMITTER_EMAIL=committer@example.com
+TEST_COMMITTER_LOCALNAME=committer
+TEST_COMMITTER_DOMAIN=example.com
+GIT_COMMITTER_EMAIL=${TEST_COMMITTER_LOCALNAME}@${TEST_COMMITTER_DOMAIN}
 GIT_COMMITTER_NAME='C O Mitter'
 GIT_MERGE_VERBOSITY=5
 GIT_MERGE_AUTOEDIT=no
@@ -508,6 +513,9 @@ EMPTY_BLOB=e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
 LF='
 '
 
+# Single quote
+SQ=\'
+
 # UTF-8 ZERO WIDTH NON-JOINER, which HFS+ ignores
 # when case-folding filenames
 u200c=$(printf '\342\200\214')
@@ -568,6 +576,7 @@ export TERM
 
 error () {
 	say_color error "error: $*"
+	finalize_junit_xml
 	GIT_EXIT_OK=t
 	exit 1
 }
@@ -696,7 +705,7 @@ test_failure_ () {
 	say_color error "not ok $test_count - $1"
 	shift
 	printf '%s\n' "$*" | sed -e 's/^/#	/'
-	test "$immediate" = "" || { GIT_EXIT_OK=t; exit 1; }
+	test "$immediate" = "" || { finalize_junit_xml; GIT_EXIT_OK=t; exit 1; }
 }
 
 test_known_broken_ok_ () {
@@ -1064,6 +1073,25 @@ write_junit_xml_testcase () {
 	junit_have_testcase=t
 }
 
+finalize_junit_xml () {
+	if test -n "$write_junit_xml" && test -n "$junit_xml_path"
+	then
+		test -n "$junit_have_testcase" || {
+			junit_start=$(test-tool date getnanos)
+			write_junit_xml_testcase "all tests skipped"
+		}
+
+		# adjust the overall time
+		junit_time=$(test-tool date getnanos $junit_suite_start)
+		sed "s/<testsuite [^>]*/& time=\"$junit_time\"/" \
+			<"$junit_xml_path" >"$junit_xml_path.new"
+		mv "$junit_xml_path.new" "$junit_xml_path"
+
+		write_junit_xml "  </testsuite>" "</testsuites>"
+		write_junit_xml=
+	fi
+}
+
 test_atexit_cleanup=:
 test_atexit_handler () {
 	# In a succeeding test script 'test_atexit_handler' is invoked
@@ -1086,21 +1114,7 @@ test_done () {
 	# removed, so the commands can access pidfiles and socket files.
 	test_atexit_handler
 
-	if test -n "$write_junit_xml" && test -n "$junit_xml_path"
-	then
-		test -n "$junit_have_testcase" || {
-			junit_start=$(test-tool date getnanos)
-			write_junit_xml_testcase "all tests skipped"
-		}
-
-		# adjust the overall time
-		junit_time=$(test-tool date getnanos $junit_suite_start)
-		sed "s/<testsuite [^>]*/& time=\"$junit_time\"/" \
-			<"$junit_xml_path" >"$junit_xml_path.new"
-		mv "$junit_xml_path.new" "$junit_xml_path"
-
-		write_junit_xml "  </testsuite>" "</testsuites>"
-	fi
+	finalize_junit_xml
 
 	if test -z "$HARNESS_ACTIVE"
 	then
@@ -1389,6 +1403,25 @@ yes () {
 	done
 }
 
+# The GIT_TEST_FAIL_PREREQS code hooks into test_set_prereq(), and
+# thus needs to be set up really early, and set an internal variable
+# for convenience so the hot test_set_prereq() codepath doesn't need
+# to call "git env--helper". Only do that work if needed by seeing if
+# GIT_TEST_FAIL_PREREQS is set at all.
+GIT_TEST_FAIL_PREREQS_INTERNAL=
+if test -n "$GIT_TEST_FAIL_PREREQS"
+then
+	if git env--helper --type=bool --default=0 --exit-code GIT_TEST_FAIL_PREREQS
+	then
+		GIT_TEST_FAIL_PREREQS_INTERNAL=true
+		test_set_prereq FAIL_PREREQS
+	fi
+else
+	test_lazy_prereq FAIL_PREREQS '
+		git env--helper --type=bool --default=0 --exit-code GIT_TEST_FAIL_PREREQS
+	'
+fi
+
 # Fix some commands on Windows
 uname_s=$(uname -s)
 case $uname_s in
@@ -1443,11 +1476,9 @@ then
 	unset GIT_TEST_GETTEXT_POISON_ORIG
 fi
 
-# Can we rely on git's output in the C locale?
-if test -z "$GIT_TEST_GETTEXT_POISON"
-then
-	test_set_prereq C_LOCALE_OUTPUT
-fi
+test_lazy_prereq C_LOCALE_OUTPUT '
+	! git env--helper --type=bool --default=0 --exit-code GIT_TEST_GETTEXT_POISON
+'
 
 if test -z "$GIT_TEST_CHECK_CACHE_TREE"
 then

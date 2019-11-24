@@ -499,10 +499,7 @@ test_expect_success 'upload-pack respects client shallows' '
 
 	# Add extra commits to the client so that the whole fetch takes more
 	# than 1 request (due to negotiation)
-	for i in $(test_seq 1 32)
-	do
-		test_commit -C client c$i
-	done &&
+	test_commit_bulk -C client --id=c 32 &&
 
 	git -C server checkout -b newbranch base &&
 	test_commit -C server client_wants &&
@@ -634,6 +631,19 @@ test_expect_success 'fetch with http:// using protocol v2' '
 	grep "git< version 2" log
 '
 
+test_expect_success 'fetch with http:// by hash without tag following with protocol v2 does not list refs' '
+	test_when_finished "rm -f log" &&
+
+	test_commit -C "$HTTPD_DOCUMENT_ROOT_PATH/http_parent" two_a &&
+	git -C "$HTTPD_DOCUMENT_ROOT_PATH/http_parent" rev-parse two_a >two_a_hash &&
+
+	GIT_TRACE_PACKET="$(pwd)/log" git -C http_child -c protocol.version=2 \
+		fetch --no-tags origin $(cat two_a_hash) &&
+
+	grep "fetch< version 2" log &&
+	! grep "fetch> command=ls-refs" log
+'
+
 test_expect_success 'fetch from namespaced repo respects namespaces' '
 	test_when_finished "rm -f log" &&
 
@@ -711,10 +721,7 @@ test_expect_success 'when server does not send "ready", expect FLUSH' '
 	# Create many commits to extend the negotiation phase across multiple
 	# requests, so that the server does not send "ready" in the first
 	# request.
-	for i in $(test_seq 1 32)
-	do
-		test_commit -C http_child c$i
-	done &&
+	test_commit_bulk -C http_child --id=c 32 &&
 
 	# After the acknowledgments section, pretend that a DELIM
 	# (0001) was sent instead of a FLUSH (0000).
@@ -728,5 +735,8 @@ test_expect_success 'when server does not send "ready", expect FLUSH' '
 	! grep "fetch< .*ready" log &&
 	test_i18ngrep "expected no other sections to be sent after no .ready." err
 '
+
+# DO NOT add non-httpd-specific tests here, because the last part of this
+# test script is only executed when httpd is available and enabled.
 
 test_done

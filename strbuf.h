@@ -373,6 +373,12 @@ void strbuf_addbuf_percentquote(struct strbuf *dst, const struct strbuf *src);
 void strbuf_humanise_bytes(struct strbuf *buf, off_t bytes);
 
 /**
+ * Append the given byte rate as a human-readable string (i.e. 12.23 KiB/s,
+ * 3.50 MiB/s).
+ */
+void strbuf_humanise_rate(struct strbuf *buf, off_t bytes);
+
+/**
  * Add a formatted string to the buffer.
  */
 __attribute__((format (printf,2,3)))
@@ -666,8 +672,13 @@ void strbuf_branchname(struct strbuf *sb, const char *name,
  */
 int strbuf_check_branch_ref(struct strbuf *sb, const char *name);
 
+typedef int (*char_predicate)(char ch);
+
+int is_rfc3986_unreserved(char ch);
+int is_rfc3986_reserved_or_unreserved(char ch);
+
 void strbuf_addstr_urlencode(struct strbuf *sb, const char *name,
-			     int reserved);
+			     char_predicate allow_unencoded_fn);
 
 __attribute__((format (printf,1,2)))
 int printf_ln(const char *fmt, ...);

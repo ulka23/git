@@ -403,9 +403,9 @@ static int repo_collect_ambiguous(struct repository *r,
 	return collect_ambiguous(oid, data);
 }
 
-static struct repository *sort_ambiguous_repo;
-static int sort_ambiguous(const void *a, const void *b)
+static int sort_ambiguous(const void *a, const void *b, void *ctx)
 {
+	struct repository *sort_ambiguous_repo = ctx;
 	int a_type = oid_object_info(sort_ambiguous_repo, a, NULL);
 	int b_type = oid_object_info(sort_ambiguous_repo, b, NULL);
 	int a_type_sort;
@@ -434,10 +434,7 @@ static int sort_ambiguous(const void *a, const void *b)
 
 static void sort_ambiguous_oid_array(struct repository *r, struct oid_array *a)
 {
-	/* mutex will be needed if this code is to be made thread safe */
-	sort_ambiguous_repo = r;
-	QSORT(a->oid, a->nr, sort_ambiguous);
-	sort_ambiguous_repo = NULL;
+	QSORT_S(a->oid, a->nr, sort_ambiguous, r);
 }
 
 static enum get_oid_result get_short_oid(struct repository *r,
@@ -478,7 +475,7 @@ static enum get_oid_result get_short_oid(struct repository *r,
 	 * or migrated from loose to packed.
 	 */
 	if (status == MISSING_OBJECT) {
-		reprepare_packed_git(the_repository);
+		reprepare_packed_git(r);
 		find_short_object_filename(&ds);
 		find_short_packed_object(&ds);
 		status = finish_object_disambiguation(&ds, oid);
@@ -801,7 +798,7 @@ static int get_oid_basic(struct repository *r, const char *str, int len,
 	"because it will be ignored when you just specify 40-hex. These refs\n"
 	"may be created by mistake. For example,\n"
 	"\n"
-	"  git checkout -b $br $(git rev-parse ...)\n"
+	"  git switch -c $br $(git rev-parse ...)\n"
 	"\n"
 	"where \"$br\" is somehow empty and a 40-hex ref is created. Please\n"
 	"examine these refs and maybe delete them. Turn this message off by\n"
@@ -1163,13 +1160,22 @@ static enum get_oid_result get_oid_1(struct repository *r,
 	}
 
 	if (has_suffix) {
-		int num = 0;
+		unsigned int num = 0;
 		int len1 = cp - name;
 		cp++;
-		while (cp < name + len)
-			num = num * 10 + *cp++ - '0';
+		while (cp < name + len) {
+			unsigned int digit = *cp++ - '0';
+			if (unsigned_mult_overflows(num, 10))
+				return MISSING_OBJECT;
+			num *= 10;
+			if (unsigned_add_overflows(num, digit))
+				return MISSING_OBJECT;
+			num += digit;
+		}
 		if (!num && len1 == len - 1)
 			num = 1;
+		else if (num > INT_MAX)
+			return MISSING_OBJECT;
 		if (has_suffix == '^')
 			return get_parent(r, name, len1, oid, num);
 		/* else if (has_suffix == '~') -- goes without saying */
@@ -1289,7 +1295,7 @@ static int get_oid_oneline(struct repository *r,
 
 struct grab_nth_branch_switch_cbdata {
 	int remaining;
-	struct strbuf buf;
+	struct strbuf *sb;
 };
 
 static int grab_nth_branch_switch(struct object_id *ooid, struct object_id *noid,
@@ -1307,8 +1313,8 @@ static int grab_nth_branch_switch(struct object_id *ooid, struct object_id *noid
 		return 0;
 	if (--(cb->remaining) == 0) {
 		len = target - match;
-		strbuf_reset(&cb->buf);
-		strbuf_add(&cb->buf, match, len);
+		strbuf_reset(cb->sb);
+		strbuf_add(cb->sb, match, len);
 		return 1; /* we are done */
 	}
 	return 0;
@@ -1341,18 +1347,15 @@ static int interpret_nth_prior_checkout(struct repository *r,
 	if (nth <= 0)
 		return -1;
 	cb.remaining = nth;
-	strbuf_init(&cb.buf, 20);
+	cb.sb = buf;
 
 	retval = refs_for_each_reflog_ent_reverse(get_main_ref_store(r),
 			"HEAD", grab_nth_branch_switch, &cb);
 	if (0 < retval) {
-		strbuf_reset(buf);
-		strbuf_addbuf(buf, &cb.buf);
 		retval = brace - name + 1;
 	} else
 		retval = 0;
 
-	strbuf_release(&cb.buf);
 	return retval;
 }
 
@@ -1389,9 +1392,7 @@ int repo_get_oid_mb(struct repository *r,
 	two = lookup_commit_reference_gently(r, &oid_tmp, 0);
 	if (!two)
 		return -1;
-	if (r != the_repository)
-		BUG("sorry get_merge_bases() can't take struct repository yet");
-	mbs = get_merge_bases(one, two);
+	mbs = repo_get_merge_bases(r, one, two);
 	if (!mbs || mbs->next)
 		st = -1;
 	else {
@@ -1677,7 +1678,8 @@ int repo_get_oid_blob(struct repository *r,
 }
 
 /* Must be called only when object_name:filename doesn't exist. */
-static void diagnose_invalid_oid_path(const char *prefix,
+static void diagnose_invalid_oid_path(struct repository *r,
+				      const char *prefix,
 				      const char *filename,
 				      const struct object_id *tree_oid,
 				      const char *object_name,
@@ -1695,7 +1697,7 @@ static void diagnose_invalid_oid_path(const char *prefix,
 	if (is_missing_file_error(errno)) {
 		char *fullname = xstrfmt("%s%s", prefix, filename);
 
-		if (!get_tree_entry(tree_oid, fullname, &oid, &mode)) {
+		if (!get_tree_entry(r, tree_oid, fullname, &oid, &mode)) {
 			die("Path '%s' exists, but not '%s'.\n"
 			    "Did you mean '%.*s:%s' aka '%.*s:./%s'?",
 			    fullname,
@@ -1889,23 +1891,15 @@ static enum get_oid_result get_oid_with_context_1(struct repository *repo,
 			new_filename = resolve_relative_path(repo, filename);
 			if (new_filename)
 				filename = new_filename;
-			/*
-			 * NEEDSWORK: Eventually get_tree_entry*() should
-			 * learn to take struct repository directly and we
-			 * would not need to inject submodule odb to the
-			 * in-core odb.
-			 */
-			if (repo != the_repository)
-				add_to_alternates_memory(repo->objects->odb->path);
 			if (flags & GET_OID_FOLLOW_SYMLINKS) {
-				ret = get_tree_entry_follow_symlinks(&tree_oid,
+				ret = get_tree_entry_follow_symlinks(repo, &tree_oid,
 					filename, oid, &oc->symlink_path,
 					&oc->mode);
 			} else {
-				ret = get_tree_entry(&tree_oid, filename, oid,
+				ret = get_tree_entry(repo, &tree_oid, filename, oid,
 						     &oc->mode);
 				if (ret && only_to_die) {
-					diagnose_invalid_oid_path(prefix,
+					diagnose_invalid_oid_path(repo, prefix,
 								   filename,
 								   &tree_oid,
 								   name, len);

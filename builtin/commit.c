@@ -60,15 +60,18 @@ N_("The previous cherry-pick is now empty, possibly due to conflict resolution.\
 "\n");
 
 static const char empty_cherry_pick_advice_single[] =
-N_("Otherwise, please use 'git reset'\n");
+N_("Otherwise, please use 'git cherry-pick --skip'\n");
 
 static const char empty_cherry_pick_advice_multi[] =
-N_("If you wish to skip this commit, use:\n"
+N_("and then use:\n"
 "\n"
-"    git reset\n"
+"    git cherry-pick --continue\n"
 "\n"
-"Then \"git cherry-pick --continue\" will resume cherry-picking\n"
-"the remaining commits.\n");
+"to resume cherry-picking the remaining commits.\n"
+"If you wish to skip this commit, use:\n"
+"\n"
+"    git cherry-pick --skip\n"
+"\n");
 
 static const char *color_status_slots[] = {
 	[WT_STATUS_HEADER]	  = "header",
@@ -507,7 +510,7 @@ static int run_status(FILE *fp, const char *index_file, const char *prefix, int 
 	s->nowarn = nowarn;
 	s->is_initial = get_oid(s->reference, &oid) ? 1 : 0;
 	if (!s->is_initial)
-		hashcpy(s->sha1_commit, oid.hash);
+		oidcpy(&s->oid_commit, &oid);
 	s->status_format = status_format;
 	s->ignore_submodule_arg = ignore_submodule_arg;
 
@@ -1078,9 +1081,11 @@ static const char *read_commit_message(const char *name)
 static struct status_deferred_config {
 	enum wt_status_format status_format;
 	int show_branch;
+	enum ahead_behind_flags ahead_behind;
 } status_deferred_config = {
 	STATUS_FORMAT_UNSPECIFIED,
-	-1 /* unspecified */
+	-1, /* unspecified */
+	AHEAD_BEHIND_UNSPECIFIED,
 };
 
 static void finalize_deferred_config(struct wt_status *s)
@@ -1106,6 +1111,17 @@ static void finalize_deferred_config(struct wt_status *s)
 		s->show_branch = status_deferred_config.show_branch;
 	if (s->show_branch < 0)
 		s->show_branch = 0;
+
+	/*
+	 * If the user did not give a "--[no]-ahead-behind" command
+	 * line argument *AND* we will print in a human-readable format
+	 * (short, long etc.) then we inherit from the status.aheadbehind
+	 * config setting.  In all other cases (and porcelain V[12] formats
+	 * in particular), we inherit _FULL for backwards compatibility.
+	 */
+	if (use_deferred_config &&
+	    s->ahead_behind_flags == AHEAD_BEHIND_UNSPECIFIED)
+		s->ahead_behind_flags = status_deferred_config.ahead_behind;
 
 	if (s->ahead_behind_flags == AHEAD_BEHIND_UNSPECIFIED)
 		s->ahead_behind_flags = AHEAD_BEHIND_FULL;
@@ -1244,6 +1260,10 @@ static int git_status_config(const char *k, const char *v, void *cb)
 	}
 	if (!strcmp(k, "status.branch")) {
 		status_deferred_config.show_branch = git_config_bool(k, v);
+		return 0;
+	}
+	if (!strcmp(k, "status.aheadbehind")) {
+		status_deferred_config.ahead_behind = git_config_bool(k, v);
 		return 0;
 	}
 	if (!strcmp(k, "status.showstash")) {
@@ -1386,7 +1406,7 @@ int cmd_status(int argc, const char **argv, const char *prefix)
 
 	s.is_initial = get_oid(s.reference, &oid) ? 1 : 0;
 	if (!s.is_initial)
-		hashcpy(s.sha1_commit, oid.hash);
+		oidcpy(&s.oid_commit, &oid);
 
 	s.ignore_submodule_arg = ignore_submodule_arg;
 	s.status_format = status_format;
@@ -1441,28 +1461,6 @@ static int git_commit_config(const char *k, const char *v, void *cb)
 	if (status)
 		return status;
 	return git_status_config(k, v, s);
-}
-
-int run_commit_hook(int editor_is_used, const char *index_file, const char *name, ...)
-{
-	struct argv_array hook_env = ARGV_ARRAY_INIT;
-	va_list args;
-	int ret;
-
-	argv_array_pushf(&hook_env, "GIT_INDEX_FILE=%s", index_file);
-
-	/*
-	 * Let the hook know that no editor will be launched.
-	 */
-	if (!editor_is_used)
-		argv_array_push(&hook_env, "GIT_EDITOR=:");
-
-	va_start(args, name);
-	ret = run_hook_ve(hook_env.argv,name, args);
-	va_end(args);
-	argv_array_clear(&hook_env);
-
-	return ret;
 }
 
 int cmd_commit(int argc, const char **argv, const char *prefix)
@@ -1658,7 +1656,7 @@ int cmd_commit(int argc, const char **argv, const char *prefix)
 		die("%s", err.buf);
 	}
 
-	sequencer_post_commit_cleanup(the_repository);
+	sequencer_post_commit_cleanup(the_repository, 0);
 	unlink(git_path_merge_head(the_repository));
 	unlink(git_path_merge_msg(the_repository));
 	unlink(git_path_merge_mode(the_repository));
@@ -1667,10 +1665,10 @@ int cmd_commit(int argc, const char **argv, const char *prefix)
 	if (commit_index_files())
 		die(_("repository has been updated, but unable to write\n"
 		      "new_index file. Check that disk is not full and quota is\n"
-		      "not exceeded, and then \"git reset HEAD\" to recover."));
+		      "not exceeded, and then \"git restore --staged :/\" to recover."));
 
 	if (git_env_bool(GIT_TEST_COMMIT_GRAPH, 0) &&
-	    write_commit_graph_reachable(get_object_directory(), 0))
+	    write_commit_graph_reachable(get_object_directory(), 0, NULL))
 		return 1;
 
 	repo_rerere(the_repository, 0);

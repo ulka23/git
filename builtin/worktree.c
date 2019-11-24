@@ -10,7 +10,6 @@
 #include "run-command.h"
 #include "sigchain.h"
 #include "submodule.h"
-#include "refs.h"
 #include "utf8.h"
 #include "worktree.h"
 
@@ -275,6 +274,7 @@ static int add_worktree(const char *path, const char *refname,
 	struct strbuf symref = STRBUF_INIT;
 	struct commit *commit = NULL;
 	int is_branch = 0;
+	struct strbuf sb_name = STRBUF_INIT;
 
 	validate_worktree_add(path, opts);
 
@@ -290,7 +290,13 @@ static int add_worktree(const char *path, const char *refname,
 		die(_("invalid reference: %s"), refname);
 
 	name = worktree_basename(path, &len);
-	git_path_buf(&sb_repo, "worktrees/%.*s", (int)(path + len - name), name);
+	strbuf_add(&sb, name, path + len - name);
+	sanitize_refname_component(sb.buf, &sb_name);
+	if (!sb_name.len)
+		BUG("How come '%s' becomes empty after sanitization?", sb.buf);
+	strbuf_reset(&sb);
+	name = sb_name.buf;
+	git_path_buf(&sb_repo, "worktrees/%s", name);
 	len = sb_repo.len;
 	if (safe_create_leading_directories_const(sb_repo.buf))
 		die_errno(_("could not create leading directories of '%s'"),
@@ -343,7 +349,7 @@ static int add_worktree(const char *path, const char *refname,
 	 */
 	strbuf_reset(&sb);
 	strbuf_addf(&sb, "%s/HEAD", sb_repo.buf);
-	write_file(sb.buf, "%s", sha1_to_hex(null_sha1));
+	write_file(sb.buf, "%s", oid_to_hex(&null_oid));
 	strbuf_reset(&sb);
 	strbuf_addf(&sb, "%s/commondir", sb_repo.buf);
 	write_file(sb.buf, "../..");
@@ -418,6 +424,7 @@ done:
 	strbuf_release(&symref);
 	strbuf_release(&sb_repo);
 	strbuf_release(&sb_git);
+	strbuf_release(&sb_name);
 	return ret;
 }
 
@@ -872,7 +879,7 @@ static void check_clean_worktree(struct worktree *wt,
 			  original_path);
 	ret = xread(cp.out, buf, sizeof(buf));
 	if (ret)
-		die(_("'%s' is dirty, use --force to delete it"),
+		die(_("'%s' contains modified or untracked files, use --force to delete it"),
 		    original_path);
 	close(cp.out);
 	ret = finish_command(&cp);

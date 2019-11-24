@@ -586,7 +586,7 @@ static int do_recursive_merge(struct repository *r,
 			      struct replay_opts *opts)
 {
 	struct merge_options o;
-	struct tree *result, *next_tree, *base_tree, *head_tree;
+	struct tree *next_tree, *base_tree, *head_tree;
 	int clean;
 	char **xopt;
 	struct lock_file index_lock = LOCK_INIT;
@@ -613,11 +613,10 @@ static int do_recursive_merge(struct repository *r,
 
 	clean = merge_trees(&o,
 			    head_tree,
-			    next_tree, base_tree, &result);
+			    next_tree, base_tree);
 	if (is_rebase_i(opts) && clean <= 0)
 		fputs(o.obuf.buf, stdout);
 	strbuf_release(&o.obuf);
-	diff_warn_rename_limit("merge.renamelimit", o.needed_rename_limit, 0);
 	if (clean < 0) {
 		rollback_lock_file(&index_lock);
 		return clean;
@@ -770,7 +769,7 @@ static int parse_key_value_squoted(char *buf, struct string_list *list)
  *	GIT_AUTHOR_DATE='$author_date'
  *
  * where $author_name, $author_email and $author_date are quoted. We are strict
- * with our parsing, as the file was meant to be eval'd in the old
+ * with our parsing, as the file was meant to be eval'd in the now-removed
  * git-am.sh/git-rebase--interactive.sh scripts, and thus if the file differs
  * from what this function expects, it is better to bail out than to do
  * something that the user does not expect.
@@ -1127,25 +1126,22 @@ static int run_prepare_commit_msg_hook(struct repository *r,
 				       struct strbuf *msg,
 				       const char *commit)
 {
-	struct argv_array hook_env = ARGV_ARRAY_INIT;
-	int ret;
-	const char *name;
+	int ret = 0;
+	const char *name, *arg1 = NULL, *arg2 = NULL;
 
 	name = git_path_commit_editmsg();
 	if (write_message(msg->buf, msg->len, name, 0))
 		return -1;
 
-	argv_array_pushf(&hook_env, "GIT_INDEX_FILE=%s", r->index_file);
-	argv_array_push(&hook_env, "GIT_EDITOR=:");
-	if (commit)
-		ret = run_hook_le(hook_env.argv, "prepare-commit-msg", name,
-				  "commit", commit, NULL);
-	else
-		ret = run_hook_le(hook_env.argv, "prepare-commit-msg", name,
-				  "message", NULL);
-	if (ret)
+	if (commit) {
+		arg1 = "commit";
+		arg2 = commit;
+	} else {
+		arg1 = "message";
+	}
+	if (run_commit_hook(0, r->index_file, "prepare-commit-msg", name,
+			    arg1, arg2, NULL))
 		ret = error(_("'prepare-commit-msg' hook failed"));
-	argv_array_clear(&hook_env);
 
 	return ret;
 }
@@ -1404,6 +1400,7 @@ static int try_to_commit(struct repository *r,
 		goto out;
 	}
 
+	run_commit_hook(0, r->index_file, "post-commit", NULL);
 	if (flags & AMEND_MSG)
 		commit_post_rewrite(r, current_head, oid);
 
@@ -2018,6 +2015,18 @@ const char *todo_item_get_arg(struct todo_list *todo_list,
 	return todo_list->buf.buf + item->arg_offset;
 }
 
+static int is_command(enum todo_command command, const char **bol)
+{
+	const char *str = todo_command_info[command].str;
+	const char nick = todo_command_info[command].c;
+	const char *p = *bol + 1;
+
+	return skip_prefix(*bol, str, bol) ||
+		((nick && **bol == nick) &&
+		 (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r' || !*p) &&
+		 (*bol = p));
+}
+
 static int parse_insn_line(struct repository *r, struct todo_item *item,
 			   const char *buf, const char *bol, char *eol)
 {
@@ -2039,12 +2048,7 @@ static int parse_insn_line(struct repository *r, struct todo_item *item,
 	}
 
 	for (i = 0; i < TODO_COMMENT; i++)
-		if (skip_prefix(bol, todo_command_info[i].str, &bol)) {
-			item->command = i;
-			break;
-		} else if ((bol + 1 == eol || bol[1] == ' ') &&
-			   *bol == todo_command_info[i].c) {
-			bol++;
+		if (is_command(i, &bol)) {
 			item->command = i;
 			break;
 		}
@@ -2112,34 +2116,26 @@ static int parse_insn_line(struct repository *r, struct todo_item *item,
 
 int sequencer_get_last_command(struct repository *r, enum replay_action *action)
 {
-	struct todo_item item;
-	char *eol;
-	const char *todo_file;
+	const char *todo_file, *bol;
 	struct strbuf buf = STRBUF_INIT;
-	int ret = -1;
+	int ret = 0;
 
 	todo_file = git_path_todo_file();
 	if (strbuf_read_file(&buf, todo_file, 0) < 0) {
-		if (errno == ENOENT)
+		if (errno == ENOENT || errno == ENOTDIR)
 			return -1;
 		else
 			return error_errno("unable to open '%s'", todo_file);
 	}
-	eol = strchrnul(buf.buf, '\n');
-	if (buf.buf != eol && eol[-1] == '\r')
-		eol--; /* strip Carriage Return */
-	if (parse_insn_line(r, &item, buf.buf, buf.buf, eol))
-		goto fail;
-	if (item.command == TODO_PICK)
+	bol = buf.buf + strspn(buf.buf, " \t\r\n");
+	if (is_command(TODO_PICK, &bol) && (*bol == ' ' || *bol == '\t'))
 		*action = REPLAY_PICK;
-	else if (item.command == TODO_REVERT)
+	else if (is_command(TODO_REVERT, &bol) &&
+		 (*bol == ' ' || *bol == '\t'))
 		*action = REPLAY_REVERT;
 	else
-		goto fail;
+		ret = -1;
 
-	ret = 0;
-
- fail:
 	strbuf_release(&buf);
 
 	return ret;
@@ -2253,19 +2249,21 @@ static int have_finished_the_last_pick(void)
 	return ret;
 }
 
-void sequencer_post_commit_cleanup(struct repository *r)
+void sequencer_post_commit_cleanup(struct repository *r, int verbose)
 {
 	struct replay_opts opts = REPLAY_OPTS_INIT;
 	int need_cleanup = 0;
 
 	if (file_exists(git_path_cherry_pick_head(r))) {
-		unlink(git_path_cherry_pick_head(r));
+		if (!unlink(git_path_cherry_pick_head(r)) && verbose)
+			warning(_("cancelling a cherry picking in progress"));
 		opts.action = REPLAY_PICK;
 		need_cleanup = 1;
 	}
 
 	if (file_exists(git_path_revert_head(r))) {
-		unlink(git_path_revert_head(r));
+		if (!unlink(git_path_revert_head(r)) && verbose)
+			warning(_("cancelling a revert in progress"));
 		opts.action = REPLAY_REVERT;
 		need_cleanup = 1;
 	}
@@ -2592,15 +2590,41 @@ static int walk_revs_populate_todo(struct todo_list *todo_list,
 	return 0;
 }
 
-static int create_seq_dir(void)
+static int create_seq_dir(struct repository *r)
 {
-	if (file_exists(git_path_seq_dir())) {
-		error(_("a cherry-pick or revert is already in progress"));
-		advise(_("try \"git cherry-pick (--continue | --quit | --abort)\""));
+	enum replay_action action;
+	const char *in_progress_error = NULL;
+	const char *in_progress_advice = NULL;
+	unsigned int advise_skip = file_exists(git_path_revert_head(r)) ||
+				file_exists(git_path_cherry_pick_head(r));
+
+	if (!sequencer_get_last_command(r, &action)) {
+		switch (action) {
+		case REPLAY_REVERT:
+			in_progress_error = _("revert is already in progress");
+			in_progress_advice =
+			_("try \"git revert (--continue | %s--abort | --quit)\"");
+			break;
+		case REPLAY_PICK:
+			in_progress_error = _("cherry-pick is already in progress");
+			in_progress_advice =
+			_("try \"git cherry-pick (--continue | %s--abort | --quit)\"");
+			break;
+		default:
+			BUG("unexpected action in create_seq_dir");
+		}
+	}
+	if (in_progress_error) {
+		error("%s", in_progress_error);
+		if (advice_sequencer_in_use)
+			advise(in_progress_advice,
+				advise_skip ? "--skip | " : "");
 		return -1;
-	} else if (mkdir(git_path_seq_dir(), 0777) < 0)
+	}
+	if (mkdir(git_path_seq_dir(), 0777) < 0)
 		return error_errno(_("could not create sequencer directory '%s'"),
 				   git_path_seq_dir());
+
 	return 0;
 }
 
@@ -2651,15 +2675,20 @@ static int rollback_is_safe(void)
 	return oideq(&actual_head, &expected_head);
 }
 
-static int reset_for_rollback(const struct object_id *oid)
+static int reset_merge(const struct object_id *oid)
 {
-	const char *argv[4];	/* reset --merge <arg> + NULL */
+	int ret;
+	struct argv_array argv = ARGV_ARRAY_INIT;
 
-	argv[0] = "reset";
-	argv[1] = "--merge";
-	argv[2] = oid_to_hex(oid);
-	argv[3] = NULL;
-	return run_command_v_opt(argv, RUN_GIT_CMD);
+	argv_array_pushl(&argv, "reset", "--merge", NULL);
+
+	if (!is_null_oid(oid))
+		argv_array_push(&argv, oid_to_hex(oid));
+
+	ret = run_command_v_opt(argv.argv, RUN_GIT_CMD);
+	argv_array_clear(&argv);
+
+	return ret;
 }
 
 static int rollback_single_pick(struct repository *r)
@@ -2673,7 +2702,16 @@ static int rollback_single_pick(struct repository *r)
 		return error(_("cannot resolve HEAD"));
 	if (is_null_oid(&head_oid))
 		return error(_("cannot abort from a branch yet to be born"));
-	return reset_for_rollback(&head_oid);
+	return reset_merge(&head_oid);
+}
+
+static int skip_single_pick(void)
+{
+	struct object_id head;
+
+	if (read_ref_full("HEAD", 0, &head, NULL))
+		return error(_("cannot resolve HEAD"));
+	return reset_merge(&head);
 }
 
 int sequencer_rollback(struct repository *r, struct replay_opts *opts)
@@ -2716,12 +2754,76 @@ int sequencer_rollback(struct repository *r, struct replay_opts *opts)
 		warning(_("You seem to have moved HEAD. "
 			  "Not rewinding, check your HEAD!"));
 	} else
-	if (reset_for_rollback(&oid))
+	if (reset_merge(&oid))
 		goto fail;
 	strbuf_release(&buf);
 	return sequencer_remove_state(opts);
 fail:
 	strbuf_release(&buf);
+	return -1;
+}
+
+int sequencer_skip(struct repository *r, struct replay_opts *opts)
+{
+	enum replay_action action = -1;
+	sequencer_get_last_command(r, &action);
+
+	/*
+	 * Check whether the subcommand requested to skip the commit is actually
+	 * in progress and that it's safe to skip the commit.
+	 *
+	 * opts->action tells us which subcommand requested to skip the commit.
+	 * If the corresponding .git/<ACTION>_HEAD exists, we know that the
+	 * action is in progress and we can skip the commit.
+	 *
+	 * Otherwise we check that the last instruction was related to the
+	 * particular subcommand we're trying to execute and barf if that's not
+	 * the case.
+	 *
+	 * Finally we check that the rollback is "safe", i.e., has the HEAD
+	 * moved? In this case, it doesn't make sense to "reset the merge" and
+	 * "skip the commit" as the user already handled this by committing. But
+	 * we'd not want to barf here, instead give advice on how to proceed. We
+	 * only need to check that when .git/<ACTION>_HEAD doesn't exist because
+	 * it gets removed when the user commits, so if it still exists we're
+	 * sure the user can't have committed before.
+	 */
+	switch (opts->action) {
+	case REPLAY_REVERT:
+		if (!file_exists(git_path_revert_head(r))) {
+			if (action != REPLAY_REVERT)
+				return error(_("no revert in progress"));
+			if (!rollback_is_safe())
+				goto give_advice;
+		}
+		break;
+	case REPLAY_PICK:
+		if (!file_exists(git_path_cherry_pick_head(r))) {
+			if (action != REPLAY_PICK)
+				return error(_("no cherry-pick in progress"));
+			if (!rollback_is_safe())
+				goto give_advice;
+		}
+		break;
+	default:
+		BUG("unexpected action in sequencer_skip");
+	}
+
+	if (skip_single_pick())
+		return error(_("failed to skip the commit"));
+	if (!is_directory(git_path_seq_dir()))
+		return 0;
+
+	return sequencer_continue(r, opts);
+
+give_advice:
+	error(_("there is nothing to skip"));
+
+	if (advice_resolve_conflict) {
+		advise(_("have you committed already?\n"
+			 "try \"git %s --continue\""),
+			 action == REPLAY_REVERT ? "revert" : "cherry-pick");
+	}
 	return -1;
 }
 
@@ -3136,7 +3238,7 @@ static int do_reset(struct repository *r,
 		return error_resolve_conflict(_(action_name(opts)));
 	}
 
-	if (!fill_tree_descriptor(&desc, &oid)) {
+	if (!fill_tree_descriptor(r, &desc, &oid)) {
 		error(_("failed to find tree of %s"), oid_to_hex(&oid));
 		rollback_lock_file(&lock);
 		free((void *)desc.buffer);
@@ -3198,6 +3300,9 @@ static int do_merge(struct repository *r,
 	struct commit *head_commit, *merge_commit, *i;
 	struct commit_list *bases, *j, *reversed = NULL;
 	struct commit_list *to_merge = NULL, **tail = &to_merge;
+	const char *strategy = !opts->xopts_nr &&
+		(!opts->strategy || !strcmp(opts->strategy, "recursive")) ?
+		NULL : opts->strategy;
 	struct merge_options o;
 	int merge_arg_len, oneline_offset, can_fast_forward, ret, k;
 	static struct lock_file lock;
@@ -3343,10 +3448,14 @@ static int do_merge(struct repository *r,
 		rollback_lock_file(&lock);
 		ret = fast_forward_to(r, &commit->object.oid,
 				      &head_commit->object.oid, 0, opts);
+		if (flags & TODO_EDIT_MERGE_MSG) {
+			run_commit_flags |= AMEND_MSG;
+			goto fast_forward_edit;
+		}
 		goto leave_merge;
 	}
 
-	if (to_merge->next) {
+	if (strategy || to_merge->next) {
 		/* Octopus merge */
 		struct child_process cmd = CHILD_PROCESS_INIT;
 
@@ -3360,7 +3469,14 @@ static int do_merge(struct repository *r,
 		cmd.git_cmd = 1;
 		argv_array_push(&cmd.args, "merge");
 		argv_array_push(&cmd.args, "-s");
-		argv_array_push(&cmd.args, "octopus");
+		if (!strategy)
+			argv_array_push(&cmd.args, "octopus");
+		else {
+			argv_array_push(&cmd.args, strategy);
+			for (k = 0; k < opts->xopts_nr; k++)
+				argv_array_pushf(&cmd.args,
+						 "-X%s", opts->xopts[k]);
+		}
 		argv_array_push(&cmd.args, "--no-edit");
 		argv_array_push(&cmd.args, "--no-ff");
 		argv_array_push(&cmd.args, "--no-log");
@@ -3398,7 +3514,7 @@ static int do_merge(struct repository *r,
 		goto leave_merge;
 	}
 
-	write_message(oid_to_hex(&merge_commit->object.oid), GIT_SHA1_HEXSZ,
+	write_message(oid_to_hex(&merge_commit->object.oid), the_hash_algo->hexsz,
 		      git_path_merge_head(r), 0);
 	write_message("no-ff", 5, git_path_merge_mode(r), 0);
 
@@ -3446,6 +3562,7 @@ static int do_merge(struct repository *r,
 		 * value (a negative one would indicate that the `merge`
 		 * command needs to be rescheduled).
 		 */
+	fast_forward_edit:
 		ret = !!run_git_commit(r, git_path_merge_msg(r), opts,
 				       run_commit_flags);
 
@@ -3671,7 +3788,7 @@ static int pick_commits(struct repository *r,
 			unlink(rebase_path_author_script());
 			unlink(rebase_path_stopped_sha());
 			unlink(rebase_path_amend());
-			unlink(git_path_merge_head(the_repository));
+			unlink(git_path_merge_head(r));
 			delete_ref(NULL, "REBASE_HEAD", NULL, REF_NO_DEREF);
 
 			if (item->command == TODO_BREAK) {
@@ -4061,7 +4178,7 @@ static int commit_staged_changes(struct repository *r,
 			   opts, flags))
 		return error(_("could not commit staged changes."));
 	unlink(rebase_path_amend());
-	unlink(git_path_merge_head(the_repository));
+	unlink(git_path_merge_head(r));
 	if (final_fixup) {
 		unlink(rebase_path_fixup_msg());
 		unlink(rebase_path_squash_msg());
@@ -4199,7 +4316,7 @@ int sequencer_pick_revisions(struct repository *r,
 	 */
 
 	if (walk_revs_populate_todo(&todo_list, opts) ||
-			create_seq_dir() < 0)
+			create_seq_dir(r) < 0)
 		return -1;
 	if (get_oid("HEAD", &oid) && (opts->action == REPLAY_REVERT))
 		return error(_("can't revert as initial commit"));
@@ -4278,9 +4395,14 @@ struct labels_entry {
 	char label[FLEX_ARRAY];
 };
 
-static int labels_cmp(const void *fndata, const struct labels_entry *a,
-		      const struct labels_entry *b, const void *key)
+static int labels_cmp(const void *fndata, const struct hashmap_entry *eptr,
+		      const struct hashmap_entry *entry_or_key, const void *key)
 {
+	const struct labels_entry *a, *b;
+
+	a = container_of(eptr, const struct labels_entry, entry);
+	b = container_of(entry_or_key, const struct labels_entry, entry);
+
 	return key ? strcmp(a->label, key) : strcmp(a->label, b->label);
 }
 
@@ -4325,7 +4447,7 @@ static const char *label_oid(struct object_id *oid, const char *label,
 		char *p;
 
 		strbuf_reset(&state->buf);
-		strbuf_grow(&state->buf, GIT_SHA1_HEXSZ);
+		strbuf_grow(&state->buf, GIT_MAX_HEXSZ);
 		label = p = state->buf.buf;
 
 		find_unique_abbrev_r(p, oid, default_abbrev);
@@ -4338,7 +4460,7 @@ static const char *label_oid(struct object_id *oid, const char *label,
 			size_t i = strlen(p) + 1;
 
 			oid_to_hex_r(p, oid);
-			for (; i < GIT_SHA1_HEXSZ; i++) {
+			for (; i < the_hash_algo->hexsz; i++) {
 				char save = p[i];
 				p[i] = '\0';
 				if (!hashmap_get_from_hash(&state->labels,
@@ -4376,8 +4498,8 @@ static const char *label_oid(struct object_id *oid, const char *label,
 	}
 
 	FLEX_ALLOC_STR(labels_entry, label, label);
-	hashmap_entry_init(labels_entry, strihash(label));
-	hashmap_add(&state->labels, labels_entry);
+	hashmap_entry_init(&labels_entry->entry, strihash(label));
+	hashmap_add(&state->labels, &labels_entry->entry);
 
 	FLEX_ALLOC_STR(string_entry, string, label);
 	oidcpy(&string_entry->entry.oid, oid);
@@ -4392,6 +4514,7 @@ static int make_script_with_merges(struct pretty_print_context *pp,
 {
 	int keep_empty = flags & TODO_LIST_KEEP_EMPTY;
 	int rebase_cousins = flags & TODO_LIST_REBASE_COUSINS;
+	int root_with_onto = flags & TODO_LIST_ROOT_WITH_ONTO;
 	struct strbuf buf = STRBUF_INIT, oneline = STRBUF_INIT;
 	struct strbuf label = STRBUF_INIT;
 	struct commit_list *commits = NULL, **tail = &commits, *iter;
@@ -4411,7 +4534,7 @@ static int make_script_with_merges(struct pretty_print_context *pp,
 
 	oidmap_init(&commit2todo, 0);
 	oidmap_init(&state.commit2label, 0);
-	hashmap_init(&state.labels, (hashmap_cmp_fn) labels_cmp, NULL, 0);
+	hashmap_init(&state.labels, labels_cmp, NULL, 0);
 	strbuf_init(&state.buf, 32);
 
 	if (revs->cmdline.nr && (revs->cmdline.rev[0].flags & BOTTOM)) {
@@ -4558,7 +4681,8 @@ static int make_script_with_merges(struct pretty_print_context *pp,
 
 		if (!commit)
 			strbuf_addf(out, "%s %s\n", cmd_reset,
-				    rebase_cousins ? "onto" : "[new root]");
+				    rebase_cousins || root_with_onto ?
+				    "onto" : "[new root]");
 		else {
 			const char *to = NULL;
 
@@ -4605,7 +4729,7 @@ static int make_script_with_merges(struct pretty_print_context *pp,
 
 	oidmap_free(&commit2todo, 1);
 	oidmap_free(&state.commit2label, 1);
-	hashmap_free(&state.labels, 1);
+	hashmap_free_entries(&state.labels, struct labels_entry, entry);
 	strbuf_release(&state.buf);
 
 	return 0;
@@ -4976,9 +5100,15 @@ struct subject2item_entry {
 };
 
 static int subject2item_cmp(const void *fndata,
-			    const struct subject2item_entry *a,
-			    const struct subject2item_entry *b, const void *key)
+			    const struct hashmap_entry *eptr,
+			    const struct hashmap_entry *entry_or_key,
+			    const void *key)
 {
+	const struct subject2item_entry *a, *b;
+
+	a = container_of(eptr, const struct subject2item_entry, entry);
+	b = container_of(entry_or_key, const struct subject2item_entry, entry);
+
 	return key ? strcmp(a->subject, key) : strcmp(a->subject, b->subject);
 }
 
@@ -5011,8 +5141,7 @@ int todo_list_rearrange_squash(struct todo_list *todo_list)
 	 * In that case, last[i] will indicate the index of the latest item to
 	 * be moved to appear after the i'th.
 	 */
-	hashmap_init(&subject2item, (hashmap_cmp_fn) subject2item_cmp,
-		     NULL, todo_list->nr);
+	hashmap_init(&subject2item, subject2item_cmp, NULL, todo_list->nr);
 	ALLOC_ARRAY(next, todo_list->nr);
 	ALLOC_ARRAY(tail, todo_list->nr);
 	ALLOC_ARRAY(subjects, todo_list->nr);
@@ -5055,8 +5184,11 @@ int todo_list_rearrange_squash(struct todo_list *todo_list)
 					break;
 			}
 
-			if ((entry = hashmap_get_from_hash(&subject2item,
-							   strhash(p), p)))
+			entry = hashmap_get_entry_from_hash(&subject2item,
+						strhash(p), p,
+						struct subject2item_entry,
+						entry);
+			if (entry)
 				/* found by title */
 				i2 = entry->i;
 			else if (!strchr(p, ' ') &&
@@ -5090,8 +5222,9 @@ int todo_list_rearrange_squash(struct todo_list *todo_list)
 						strhash(subject), subject)) {
 			FLEX_ALLOC_MEM(entry, subject, subject, subject_len);
 			entry->i = i;
-			hashmap_entry_init(entry, strhash(entry->subject));
-			hashmap_put(&subject2item, entry);
+			hashmap_entry_init(&entry->entry,
+					strhash(entry->subject));
+			hashmap_put(&subject2item, &entry->entry);
 		}
 	}
 
@@ -5125,7 +5258,7 @@ int todo_list_rearrange_squash(struct todo_list *todo_list)
 	for (i = 0; i < todo_list->nr; i++)
 		free(subjects[i]);
 	free(subjects);
-	hashmap_free(&subject2item, 1);
+	hashmap_free_entries(&subject2item, struct subject2item_entry, entry);
 
 	clear_commit_todo_item(&commit_todo);
 

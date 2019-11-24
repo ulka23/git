@@ -9,15 +9,15 @@ struct commit;
 struct repository;
 struct rev_info;
 
+static const char BITMAP_IDX_SIGNATURE[] = {'B', 'I', 'T', 'M'};
+
 struct bitmap_disk_header {
-	char magic[4];
+	char magic[ARRAY_SIZE(BITMAP_IDX_SIGNATURE)];
 	uint16_t version;
 	uint16_t options;
 	uint32_t entry_count;
 	unsigned char checksum[GIT_MAX_RAWSZ];
 };
-
-static const char BITMAP_IDX_SIGNATURE[] = {'B', 'I', 'T', 'M'};
 
 #define NEEDS_BITMAP (1u<<22)
 
@@ -51,7 +51,7 @@ int reuse_partial_packfile_from_bitmap(struct bitmap_index *,
 				       struct packed_git **packfile,
 				       uint32_t *entries, off_t *up_to);
 int rebuild_existing_bitmaps(struct bitmap_index *, struct packing_data *mapping,
-			     khash_sha1 *reused_bitmaps, int show_progress);
+			     kh_oid_map_t *reused_bitmaps, int show_progress);
 void free_bitmap_index(struct bitmap_index *);
 
 /*

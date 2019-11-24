@@ -269,8 +269,10 @@ static int note_tree_insert(struct notes_tree *t, struct int_node *tree,
 		case PTR_TYPE_NOTE:
 			if (oideq(&l->key_oid, &entry->key_oid)) {
 				/* skip concatenation if l == entry */
-				if (oideq(&l->val_oid, &entry->val_oid))
+				if (oideq(&l->val_oid, &entry->val_oid)) {
+					free(entry);
 					return 0;
+				}
 
 				ret = combine_notes(&l->val_oid,
 						    &entry->val_oid);
@@ -397,7 +399,7 @@ static void load_subtree(struct notes_tree *t, struct leaf_node *subtree,
 	struct name_entry entry;
 	const unsigned hashsz = the_hash_algo->rawsz;
 
-	buf = fill_tree_descriptor(&desc, &subtree->val_oid);
+	buf = fill_tree_descriptor(the_repository, &desc, &subtree->val_oid);
 	if (!buf)
 		die("Could not read %s for notes-index",
 		     oid_to_hex(&subtree->val_oid));
@@ -458,7 +460,7 @@ static void load_subtree(struct notes_tree *t, struct leaf_node *subtree,
 			die("Failed to load %s %s into notes tree "
 			    "from %s",
 			    type == PTR_TYPE_NOTE ? "note" : "subtree",
-			    oid_to_hex(&l->key_oid), t->ref);
+			    oid_to_hex(&object_oid), t->ref);
 
 		continue;
 
@@ -1015,7 +1017,7 @@ void init_notes(struct notes_tree *t, const char *notes_ref,
 		return;
 	if (flags & NOTES_INIT_WRITABLE && read_ref(notes_ref, &object_oid))
 		die("Cannot use notes ref %s", notes_ref);
-	if (get_tree_entry(&object_oid, "", &oid, &mode))
+	if (get_tree_entry(the_repository, &object_oid, "", &oid, &mode))
 		die("Failed to read notes tree referenced by %s (%s)",
 		    notes_ref, oid_to_hex(&object_oid));
 

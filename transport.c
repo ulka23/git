@@ -122,6 +122,7 @@ static void set_upstreams(struct transport *transport, struct ref *refs,
 struct bundle_transport_data {
 	int fd;
 	struct bundle_header header;
+	unsigned get_refs_from_bundle_called : 1;
 };
 
 static struct ref *get_refs_from_bundle(struct transport *transport,
@@ -134,6 +135,8 @@ static struct ref *get_refs_from_bundle(struct transport *transport,
 
 	if (for_push)
 		return NULL;
+
+	data->get_refs_from_bundle_called = 1;
 
 	if (data->fd > 0)
 		close(data->fd);
@@ -154,6 +157,9 @@ static int fetch_refs_from_bundle(struct transport *transport,
 			       int nr_heads, struct ref **to_fetch)
 {
 	struct bundle_transport_data *data = transport->data;
+
+	if (!data->get_refs_from_bundle_called)
+		get_refs_from_bundle(transport, 0, NULL);
 	return unbundle(the_repository, &data->header, data->fd,
 			transport->progress ? BUNDLE_VERBOSE : 0);
 }
@@ -224,6 +230,7 @@ static int set_git_option(struct git_transport_options *opts,
 		opts->no_dependents = !!value;
 		return 0;
 	} else if (!strcmp(name, TRANS_OPT_LIST_OBJECTS_FILTER)) {
+		list_objects_filter_die_if_populated(&opts->filter_options);
 		parse_list_objects_filter(&opts->filter_options, value);
 		return 0;
 	}
@@ -742,7 +749,6 @@ static int disconnect_git(struct transport *transport)
 }
 
 static struct transport_vtable taken_over_vtable = {
-	1,
 	NULL,
 	get_refs_via_connect,
 	fetch_refs_via_pack,
@@ -892,7 +898,6 @@ void transport_check_allowed(const char *type)
 }
 
 static struct transport_vtable bundle_vtable = {
-	0,
 	NULL,
 	get_refs_from_bundle,
 	fetch_refs_from_bundle,
@@ -902,7 +907,6 @@ static struct transport_vtable bundle_vtable = {
 };
 
 static struct transport_vtable builtin_smart_vtable = {
-	1,
 	NULL,
 	get_refs_via_connect,
 	fetch_refs_via_pack,
@@ -1141,8 +1145,10 @@ int transport_push(struct repository *r,
 
 		refspec_ref_prefixes(rs, &ref_prefixes);
 
+		trace2_region_enter("transport_push", "get_refs_list", r);
 		remote_refs = transport->vtable->get_refs_list(transport, 1,
 							       &ref_prefixes);
+		trace2_region_leave("transport_push", "get_refs_list", r);
 
 		argv_array_clear(&ref_prefixes);
 
@@ -1178,6 +1184,7 @@ int transport_push(struct repository *r,
 			struct ref *ref = remote_refs;
 			struct oid_array commits = OID_ARRAY_INIT;
 
+			trace2_region_enter("transport_push", "push_submodules", r);
 			for (; ref; ref = ref->next)
 				if (!is_null_oid(&ref->new_oid))
 					oid_array_append(&commits,
@@ -1190,9 +1197,11 @@ int transport_push(struct repository *r,
 						      transport->push_options,
 						      pretend)) {
 				oid_array_clear(&commits);
+				trace2_region_leave("transport_push", "push_submodules", r);
 				die(_("failed to push all needed submodules"));
 			}
 			oid_array_clear(&commits);
+			trace2_region_leave("transport_push", "push_submodules", r);
 		}
 
 		if (((flags & TRANSPORT_RECURSE_SUBMODULES_CHECK) ||
@@ -1203,6 +1212,7 @@ int transport_push(struct repository *r,
 			struct string_list needs_pushing = STRING_LIST_INIT_DUP;
 			struct oid_array commits = OID_ARRAY_INIT;
 
+			trace2_region_enter("transport_push", "check_submodules", r);
 			for (; ref; ref = ref->next)
 				if (!is_null_oid(&ref->new_oid))
 					oid_array_append(&commits,
@@ -1213,15 +1223,19 @@ int transport_push(struct repository *r,
 						     transport->remote->name,
 						     &needs_pushing)) {
 				oid_array_clear(&commits);
+				trace2_region_leave("transport_push", "check_submodules", r);
 				die_with_unpushed_submodules(&needs_pushing);
 			}
 			string_list_clear(&needs_pushing, 0);
 			oid_array_clear(&commits);
+			trace2_region_leave("transport_push", "check_submodules", r);
 		}
 
-		if (!(flags & TRANSPORT_RECURSE_SUBMODULES_ONLY))
+		if (!(flags & TRANSPORT_RECURSE_SUBMODULES_ONLY)) {
+			trace2_region_enter("transport_push", "push_refs", r);
 			push_ret = transport->vtable->push_refs(transport, remote_refs, flags);
-		else
+			trace2_region_leave("transport_push", "push_refs", r);
+		} else
 			push_ret = 0;
 		err = push_had_errors(remote_refs);
 		ret = push_ret | err;
@@ -1284,15 +1298,6 @@ int transport_fetch_refs(struct transport *transport, struct ref *refs)
 	int nr_heads = 0, nr_alloc = 0, nr_refs = 0;
 	struct ref **heads = NULL;
 	struct ref *rm;
-
-	if (!transport->vtable->fetch_without_list)
-		/*
-		 * Some transports (e.g. the built-in bundle transport and the
-		 * transport helper interface) do not work when fetching is
-		 * done immediately after transport creation. List the remote
-		 * refs anyway (if not already listed) as a workaround.
-		 */
-		transport_get_remote_refs(transport, NULL);
 
 	for (rm = refs; rm; rm = rm->next) {
 		nr_refs++;
@@ -1393,101 +1398,4 @@ char *transport_anonymize_url(const char *url)
 		       (int)anon_len, anon_part);
 literal_copy:
 	return xstrdup(url);
-}
-
-static void fill_alternate_refs_command(struct child_process *cmd,
-					const char *repo_path)
-{
-	const char *value;
-
-	if (!git_config_get_value("core.alternateRefsCommand", &value)) {
-		cmd->use_shell = 1;
-
-		argv_array_push(&cmd->args, value);
-		argv_array_push(&cmd->args, repo_path);
-	} else {
-		cmd->git_cmd = 1;
-
-		argv_array_pushf(&cmd->args, "--git-dir=%s", repo_path);
-		argv_array_push(&cmd->args, "for-each-ref");
-		argv_array_push(&cmd->args, "--format=%(objectname)");
-
-		if (!git_config_get_value("core.alternateRefsPrefixes", &value)) {
-			argv_array_push(&cmd->args, "--");
-			argv_array_split(&cmd->args, value);
-		}
-	}
-
-	cmd->env = local_repo_env;
-	cmd->out = -1;
-}
-
-static void read_alternate_refs(const char *path,
-				alternate_ref_fn *cb,
-				void *data)
-{
-	struct child_process cmd = CHILD_PROCESS_INIT;
-	struct strbuf line = STRBUF_INIT;
-	FILE *fh;
-
-	fill_alternate_refs_command(&cmd, path);
-
-	if (start_command(&cmd))
-		return;
-
-	fh = xfdopen(cmd.out, "r");
-	while (strbuf_getline_lf(&line, fh) != EOF) {
-		struct object_id oid;
-		const char *p;
-
-		if (parse_oid_hex(line.buf, &oid, &p) || *p) {
-			warning(_("invalid line while parsing alternate refs: %s"),
-				line.buf);
-			break;
-		}
-
-		cb(&oid, data);
-	}
-
-	fclose(fh);
-	finish_command(&cmd);
-}
-
-struct alternate_refs_data {
-	alternate_ref_fn *fn;
-	void *data;
-};
-
-static int refs_from_alternate_cb(struct object_directory *e,
-				  void *data)
-{
-	struct strbuf path = STRBUF_INIT;
-	size_t base_len;
-	struct alternate_refs_data *cb = data;
-
-	if (!strbuf_realpath(&path, e->path, 0))
-		goto out;
-	if (!strbuf_strip_suffix(&path, "/objects"))
-		goto out;
-	base_len = path.len;
-
-	/* Is this a git repository with refs? */
-	strbuf_addstr(&path, "/refs");
-	if (!is_directory(path.buf))
-		goto out;
-	strbuf_setlen(&path, base_len);
-
-	read_alternate_refs(path.buf, cb->fn, cb->data);
-
-out:
-	strbuf_release(&path);
-	return 0;
-}
-
-void for_each_alternate_ref(alternate_ref_fn fn, void *data)
-{
-	struct alternate_refs_data cb;
-	cb.fn = fn;
-	cb.data = data;
-	foreach_alt_odb(refs_from_alternate_cb, &cb);
 }

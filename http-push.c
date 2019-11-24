@@ -501,10 +501,10 @@ static void release_request(struct transfer_request *request)
 	if (request == request_queue_head) {
 		request_queue_head = request->next;
 	} else {
-		while (entry->next != NULL && entry->next != request)
+		while (entry && entry->next != request)
 			entry = entry->next;
-		if (entry->next == request)
-			entry->next = entry->next->next;
+		if (entry)
+			entry->next = request->next;
 	}
 
 	free(request->url);
@@ -723,7 +723,7 @@ static void one_remote_object(const struct object_id *oid)
 {
 	struct object *obj;
 
-	obj = lookup_object(the_repository, oid->hash);
+	obj = lookup_object(the_repository, oid);
 	if (!obj)
 		obj = parse_object(the_repository, oid);
 
@@ -981,7 +981,7 @@ static int unlock_remote(struct remote_lock *lock)
 		while (prev && prev->next != lock)
 			prev = prev->next;
 		if (prev)
-			prev->next = prev->next->next;
+			prev->next = lock->next;
 	}
 
 	free(lock->owner);
@@ -1432,7 +1432,7 @@ static void one_remote_ref(const char *refname)
 	 * may be required for updating server info later.
 	 */
 	if (repo->can_update_info_refs && !has_object_file(&ref->old_oid)) {
-		obj = lookup_unknown_object(ref->old_oid.hash);
+		obj = lookup_unknown_object(&ref->old_oid);
 		fprintf(stderr,	"  fetch %s for %s\n",
 			oid_to_hex(&ref->old_oid), refname);
 		add_fetch_request(obj);

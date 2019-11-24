@@ -25,7 +25,7 @@
 #include "packfile.h"
 #include "parse-options.h"
 #include "help.h"
-#include "fetch-object.h"
+#include "promisor-remote.h"
 
 #ifdef NO_FAST_WORKING_DIRECTORY
 #define FAST_WORKING_DIRECTORY 0
@@ -933,15 +933,17 @@ static int cmp_in_block_with_wsd(const struct diff_options *o,
 }
 
 static int moved_entry_cmp(const void *hashmap_cmp_fn_data,
-			   const void *entry,
-			   const void *entry_or_key,
+			   const struct hashmap_entry *eptr,
+			   const struct hashmap_entry *entry_or_key,
 			   const void *keydata)
 {
 	const struct diff_options *diffopt = hashmap_cmp_fn_data;
-	const struct moved_entry *a = entry;
-	const struct moved_entry *b = entry_or_key;
+	const struct moved_entry *a, *b;
 	unsigned flags = diffopt->color_moved_ws_handling
 			 & XDF_WHITESPACE_FLAGS;
+
+	a = container_of(eptr, const struct moved_entry, ent);
+	b = container_of(entry_or_key, const struct moved_entry, ent);
 
 	if (diffopt->color_moved_ws_handling &
 	    COLOR_MOVED_WS_ALLOW_INDENTATION_CHANGE)
@@ -964,8 +966,9 @@ static struct moved_entry *prepare_entry(struct diff_options *o,
 	struct moved_entry *ret = xmalloc(sizeof(*ret));
 	struct emitted_diff_symbol *l = &o->emitted_symbols->buf[line_no];
 	unsigned flags = o->color_moved_ws_handling & XDF_WHITESPACE_FLAGS;
+	unsigned int hash = xdiff_hash_string(l->line, l->len, flags);
 
-	ret->ent.hash = xdiff_hash_string(l->line, l->len, flags);
+	hashmap_entry_init(&ret->ent, hash);
 	ret->es = l;
 	ret->next_line = NULL;
 
@@ -1002,7 +1005,7 @@ static void add_lines_to_move_detection(struct diff_options *o,
 		if (prev_line && prev_line->es->s == o->emitted_symbols->buf[n].s)
 			prev_line->next_line = key;
 
-		hashmap_add(hm, key);
+		hashmap_add(hm, &key->ent);
 		prev_line = key;
 	}
 }
@@ -1018,7 +1021,7 @@ static void pmb_advance_or_null(struct diff_options *o,
 		struct moved_entry *prev = pmb[i].match;
 		struct moved_entry *cur = (prev && prev->next_line) ?
 				prev->next_line : NULL;
-		if (cur && !hm->cmpfn(o, cur, match, NULL)) {
+		if (cur && !hm->cmpfn(o, &cur->ent, &match->ent, NULL)) {
 			pmb[i].match = cur;
 		} else {
 			pmb[i].match = NULL;
@@ -1035,7 +1038,7 @@ static void pmb_advance_or_null_multi_match(struct diff_options *o,
 	int i;
 	char *got_match = xcalloc(1, pmb_nr);
 
-	for (; match; match = hashmap_get_next(hm, match)) {
+	hashmap_for_each_entry_from(hm, match, ent) {
 		for (i = 0; i < pmb_nr; i++) {
 			struct moved_entry *prev = pmb[i].match;
 			struct moved_entry *cur = (prev && prev->next_line) ?
@@ -1143,13 +1146,13 @@ static void mark_color_as_moved(struct diff_options *o,
 		case DIFF_SYMBOL_PLUS:
 			hm = del_lines;
 			key = prepare_entry(o, n);
-			match = hashmap_get(hm, key, NULL);
+			match = hashmap_get_entry(hm, key, ent, NULL);
 			free(key);
 			break;
 		case DIFF_SYMBOL_MINUS:
 			hm = add_lines;
 			key = prepare_entry(o, n);
-			match = hashmap_get(hm, key, NULL);
+			match = hashmap_get_entry(hm, key, ent, NULL);
 			free(key);
 			break;
 		default:
@@ -1188,7 +1191,7 @@ static void mark_color_as_moved(struct diff_options *o,
 			 * The current line is the start of a new block.
 			 * Setup the set of potential blocks.
 			 */
-			for (; match; match = hashmap_get_next(hm, match)) {
+			hashmap_for_each_entry_from(hm, match, ent) {
 				ALLOC_GROW(pmb, pmb_nr + 1, pmb_alloc);
 				if (o->color_moved_ws_handling &
 				    COLOR_MOVED_WS_ALLOW_INDENTATION_CHANGE) {
@@ -1673,7 +1676,10 @@ static void emit_hunk_header(struct emit_callback *ecbdata,
 	if (ecbdata->opt->flags.dual_color_diffed_diffs)
 		strbuf_addstr(&msgbuf, reverse);
 	strbuf_addstr(&msgbuf, frag);
-	strbuf_add(&msgbuf, line, ep - line);
+	if (ecbdata->opt->flags.suppress_hunk_header_line_count)
+		strbuf_add(&msgbuf, atat, sizeof(atat));
+	else
+		strbuf_add(&msgbuf, line, ep - line);
 	strbuf_addstr(&msgbuf, reset);
 
 	/*
@@ -5975,7 +5981,7 @@ static void diff_summary(struct diff_options *opt, struct diff_filepair *p)
 }
 
 struct patch_id_t {
-	git_SHA_CTX *ctx;
+	git_hash_ctx *ctx;
 	int patchlen;
 };
 
@@ -5992,6 +5998,22 @@ static int remove_space(char *line, int len)
 	return dst - line;
 }
 
+void flush_one_hunk(struct object_id *result, git_hash_ctx *ctx)
+{
+	unsigned char hash[GIT_MAX_RAWSZ];
+	unsigned short carry = 0;
+	int i;
+
+	the_hash_algo->final_fn(hash, ctx);
+	the_hash_algo->init_fn(ctx);
+	/* 20-byte sum, with carry */
+	for (i = 0; i < the_hash_algo->rawsz; ++i) {
+		carry += result->hash[i] + hash[i];
+		result->hash[i] = carry;
+		carry >>= 8;
+	}
+}
+
 static void patch_id_consume(void *priv, char *line, unsigned long len)
 {
 	struct patch_id_t *data = priv;
@@ -5999,34 +6021,35 @@ static void patch_id_consume(void *priv, char *line, unsigned long len)
 
 	new_len = remove_space(line, len);
 
-	git_SHA1_Update(data->ctx, line, new_len);
+	the_hash_algo->update_fn(data->ctx, line, new_len);
 	data->patchlen += new_len;
 }
 
-static void patch_id_add_string(git_SHA_CTX *ctx, const char *str)
+static void patch_id_add_string(git_hash_ctx *ctx, const char *str)
 {
-	git_SHA1_Update(ctx, str, strlen(str));
+	the_hash_algo->update_fn(ctx, str, strlen(str));
 }
 
-static void patch_id_add_mode(git_SHA_CTX *ctx, unsigned mode)
+static void patch_id_add_mode(git_hash_ctx *ctx, unsigned mode)
 {
 	/* large enough for 2^32 in octal */
 	char buf[12];
 	int len = xsnprintf(buf, sizeof(buf), "%06o", mode);
-	git_SHA1_Update(ctx, buf, len);
+	the_hash_algo->update_fn(ctx, buf, len);
 }
 
-/* returns 0 upon success, and writes result into sha1 */
-static int diff_get_patch_id(struct diff_options *options, struct object_id *oid, int diff_header_only)
+/* returns 0 upon success, and writes result into oid */
+static int diff_get_patch_id(struct diff_options *options, struct object_id *oid, int diff_header_only, int stable)
 {
 	struct diff_queue_struct *q = &diff_queued_diff;
 	int i;
-	git_SHA_CTX ctx;
+	git_hash_ctx ctx;
 	struct patch_id_t data;
 
-	git_SHA1_Init(&ctx);
+	the_hash_algo->init_fn(&ctx);
 	memset(&data, 0, sizeof(struct patch_id_t));
 	data.ctx = &ctx;
+	oidclr(oid);
 
 	for (i = 0; i < q->nr; i++) {
 		xpparam_t xpp;
@@ -6056,27 +6079,27 @@ static int diff_get_patch_id(struct diff_options *options, struct object_id *oid
 		len2 = remove_space(p->two->path, strlen(p->two->path));
 		patch_id_add_string(&ctx, "diff--git");
 		patch_id_add_string(&ctx, "a/");
-		git_SHA1_Update(&ctx, p->one->path, len1);
+		the_hash_algo->update_fn(&ctx, p->one->path, len1);
 		patch_id_add_string(&ctx, "b/");
-		git_SHA1_Update(&ctx, p->two->path, len2);
+		the_hash_algo->update_fn(&ctx, p->two->path, len2);
 
 		if (p->one->mode == 0) {
 			patch_id_add_string(&ctx, "newfilemode");
 			patch_id_add_mode(&ctx, p->two->mode);
 			patch_id_add_string(&ctx, "---/dev/null");
 			patch_id_add_string(&ctx, "+++b/");
-			git_SHA1_Update(&ctx, p->two->path, len2);
+			the_hash_algo->update_fn(&ctx, p->two->path, len2);
 		} else if (p->two->mode == 0) {
 			patch_id_add_string(&ctx, "deletedfilemode");
 			patch_id_add_mode(&ctx, p->one->mode);
 			patch_id_add_string(&ctx, "---a/");
-			git_SHA1_Update(&ctx, p->one->path, len1);
+			the_hash_algo->update_fn(&ctx, p->one->path, len1);
 			patch_id_add_string(&ctx, "+++/dev/null");
 		} else {
 			patch_id_add_string(&ctx, "---a/");
-			git_SHA1_Update(&ctx, p->one->path, len1);
+			the_hash_algo->update_fn(&ctx, p->one->path, len1);
 			patch_id_add_string(&ctx, "+++b/");
-			git_SHA1_Update(&ctx, p->two->path, len2);
+			the_hash_algo->update_fn(&ctx, p->two->path, len2);
 		}
 
 		if (diff_header_only)
@@ -6088,10 +6111,10 @@ static int diff_get_patch_id(struct diff_options *options, struct object_id *oid
 
 		if (diff_filespec_is_binary(options->repo, p->one) ||
 		    diff_filespec_is_binary(options->repo, p->two)) {
-			git_SHA1_Update(&ctx, oid_to_hex(&p->one->oid),
-					GIT_SHA1_HEXSZ);
-			git_SHA1_Update(&ctx, oid_to_hex(&p->two->oid),
-					GIT_SHA1_HEXSZ);
+			the_hash_algo->update_fn(&ctx, oid_to_hex(&p->one->oid),
+					the_hash_algo->hexsz);
+			the_hash_algo->update_fn(&ctx, oid_to_hex(&p->two->oid),
+					the_hash_algo->hexsz);
 			continue;
 		}
 
@@ -6102,17 +6125,22 @@ static int diff_get_patch_id(struct diff_options *options, struct object_id *oid
 				  patch_id_consume, &data, &xpp, &xecfg))
 			return error("unable to generate patch-id diff for %s",
 				     p->one->path);
+
+		if (stable)
+			flush_one_hunk(oid, &ctx);
 	}
 
-	git_SHA1_Final(oid->hash, &ctx);
+	if (!stable)
+		the_hash_algo->final_fn(oid->hash, &ctx);
+
 	return 0;
 }
 
-int diff_flush_patch_id(struct diff_options *options, struct object_id *oid, int diff_header_only)
+int diff_flush_patch_id(struct diff_options *options, struct object_id *oid, int diff_header_only, int stable)
 {
 	struct diff_queue_struct *q = &diff_queued_diff;
 	int i;
-	int result = diff_get_patch_id(options, oid, diff_header_only);
+	int result = diff_get_patch_id(options, oid, diff_header_only, stable);
 
 	for (i = 0; i < q->nr; i++)
 		diff_free_filepair(q->queue[i]);
@@ -6205,8 +6233,10 @@ static void diff_flush_patch_all_file_pairs(struct diff_options *o)
 			if (o->color_moved == COLOR_MOVED_ZEBRA_DIM)
 				dim_moved_lines(o);
 
-			hashmap_free(&add_lines, 1);
-			hashmap_free(&del_lines, 1);
+			hashmap_free_entries(&add_lines, struct moved_entry,
+						ent);
+			hashmap_free_entries(&del_lines, struct moved_entry,
+						ent);
 		}
 
 		for (i = 0; i < esm.nr; i++)
@@ -6487,6 +6517,7 @@ static void add_if_missing(struct repository *r,
 			   const struct diff_filespec *filespec)
 {
 	if (filespec && filespec->oid_valid &&
+	    !S_ISGITLINK(filespec->mode) &&
 	    oid_object_info_extended(r, &filespec->oid, NULL,
 				     OBJECT_INFO_FOR_PREFETCH))
 		oid_array_append(to_fetch, &filespec->oid);
@@ -6494,8 +6525,7 @@ static void add_if_missing(struct repository *r,
 
 void diffcore_std(struct diff_options *options)
 {
-	if (options->repo == the_repository &&
-	    repository_format_partial_clone) {
+	if (options->repo == the_repository && has_promisor_remote()) {
 		/*
 		 * Prefetch the diff pairs that are about to be flushed.
 		 */
@@ -6512,8 +6542,8 @@ void diffcore_std(struct diff_options *options)
 			/*
 			 * NEEDSWORK: Consider deduplicating the OIDs sent.
 			 */
-			fetch_objects(repository_format_partial_clone,
-				      to_fetch.oid, to_fetch.nr);
+			promisor_remote_get_direct(options->repo,
+						   to_fetch.oid, to_fetch.nr);
 		oid_array_clear(&to_fetch);
 	}
 
