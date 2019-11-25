@@ -7,15 +7,15 @@
 
 ln -s "$cache_dir/.prove" t/.prove
 
-make --jobs=2
-make --quiet test
-if test "$jobname" = "linux-gcc"
-then
-	export GIT_TEST_SPLIT_INDEX=yes
-	export GIT_TEST_FULL_IN_PACK_ARRAY=true
-	export GIT_TEST_OE_SIZE=10
-	make --quiet test
-fi
+lscpu
+
+make -j4
+cd t
+for i in $(seq 1 500)
+do
+	echo "  ####  $i  ####"
+	./t5319-multi-pack-index.sh -r 1-14 --verbose-log -x -i
+done
 
 check_unignored_build_artifacts
 

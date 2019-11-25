@@ -24,6 +24,11 @@ linux-clang|linux-gcc)
 		cp git-lfs-$LINUX_GIT_LFS_VERSION/git-lfs .
 	popd
 	;;
+s390x)
+	sudo apt-get -q update
+	sudo apt-get -q -y install libcurl4-openssl-dev libssl-dev \
+		libexpat-dev gettext
+	;;
 osx-clang|osx-gcc)
 	brew update --quiet
 	# Uncomment this if you want to run perf tests:
@@ -34,9 +39,3 @@ osx-clang|osx-gcc)
 	;;
 esac
 
-echo "$(tput setaf 6)Perforce Server Version$(tput sgr0)"
-p4d -V | grep Rev.
-echo "$(tput setaf 6)Perforce Client Version$(tput sgr0)"
-p4 -V | grep Rev.
-echo "$(tput setaf 6)Git-LFS Version$(tput sgr0)"
-git-lfs version
