@@ -33,6 +33,11 @@ linux-clang|linux-gcc)
 		cp git-lfs-$LINUX_GIT_LFS_VERSION/git-lfs .
 	popd
 	;;
+arm64)
+	sudo apt-get -q update
+	sudo apt-get -q -y install libcurl4-openssl-dev libssl-dev \
+		libexpat-dev gettext language-pack-is libsvn-perl apache2
+	;;
 osx-clang|osx-gcc)
 	export HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALL_CLEANUP=1
 	# Uncomment this if you want to run perf tests:
