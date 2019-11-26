@@ -54,10 +54,23 @@ osx-clang|osx-gcc)
 	esac
 	;;
 s390x)
+	ls -l /bin/sh
+	dpkg -l '*sh'
+	cat >timing.sh <<-EOF
+		#!/bin/sh
+		set -x
+		time sleep 2
+		true
+	EOF
+	chmod u+x ./timing.sh
+	./timing.sh
+	dash ./timing.sh
+
 	sudo apt-get -q update
 	sudo apt-get -q -y install libcurl4-openssl-dev libssl-dev \
 		libexpat-dev gettext language-pack-is libsvn-perl apache2 \
-		acl libio-pty-perl libjson-perl libhttp-date-perl
+		acl libio-pty-perl libjson-perl libhttp-date-perl man
+	man sh
 	;;
 StaticAnalysis)
 	sudo apt-get -q update
