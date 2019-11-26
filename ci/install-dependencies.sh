@@ -54,6 +54,8 @@ osx-clang|osx-gcc)
 	esac
 	;;
 s390x)
+	ls -l /bin/sh
+	dpkg -l '*sh'
 	sudo apt-get -q update
 	sudo apt-get -q -y install libcurl4-openssl-dev libssl-dev \
 		libexpat-dev gettext language-pack-is libsvn-perl apache2 \
