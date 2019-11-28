@@ -196,7 +196,7 @@ GIT_TEST_GETTEXT_POISON)
 arm64)
 	# git fast-import segfaults in getdelim() when reading from the
 	# test's fifo.  WTF?
-	export GIT_SKIP_TESTS='t9300.18[01234]'
+	#export GIT_SKIP_TESTS='t9300.18[01234]'
 	;;
 esac
 
