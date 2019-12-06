@@ -813,7 +813,7 @@ int cmd_grep(int argc, const char **argv, const char *prefix)
 	int use_index = 1;
 	int pattern_type_arg = GREP_PATTERN_TYPE_UNSPECIFIED;
 	int allow_revs;
-	char *pathspec_from_file;
+	char *pathspec_from_file = NULL;
 	int pathspec_file_nul;
 
 	struct option options[] = {
