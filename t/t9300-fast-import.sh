@@ -3176,11 +3176,11 @@ background_import_then_checkpoint () {
 	read fi_pid <&9
 	# We don't mind if fast-import has already died by the time the test
 	# ends.
-	test_when_finished "
+	test_when_finished '
 		exec 8>&-; exec 9>&-;
-		kill $sh_pid && wait $sh_pid
-		kill $fi_pid && wait $fi_pid
-		true"
+		test -n "$sh_pid" && kill $sh_pid && wait $sh_pid
+		test -n "$fi_pid" && kill $fi_pid && wait $fi_pid
+		true'
 
 	# Start in the background to ensure we adhere strictly to (blocking)
 	# pipes writing sequence. We want to assume that the write below could
@@ -3201,6 +3201,7 @@ background_import_then_checkpoint () {
 			break
 		elif test "$output" = "UNEXPECTED"
 		then
+			sh_pid= fi_pid=
 			break
 		fi
 		# otherwise ignore cruft
@@ -3214,7 +3215,7 @@ background_import_then_checkpoint () {
 }
 
 background_import_still_running () {
-	if ! kill -0 "$fi_pid"
+	if  test -z "$fi_pid" || ! kill -0 "$fi_pid"
 	then
 		echo >&2 "background fast-import terminated too early"
 		false
