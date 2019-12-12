@@ -15,11 +15,11 @@ arch:
 
 compiler:
   - gcc
-#  - clang
+  - clang
 
 matrix:
   include:
-#    - os: osx
+    - os: osx
 
 script: ci/arm64-segfault-demo.sh
 
