@@ -8,18 +8,18 @@ os: linux
 dist: bionic
 
 arch:
-  - amd64
-  - arm64
-  - s390x
+   - amd64
+#  - arm64
+#  - s390x
   - ppc64le
 
 compiler:
   - gcc
-  - clang
+#  - clang
 
 matrix:
   include:
-    - os: osx
+#    - os: osx
 
 script: ci/arm64-segfault-demo.sh
 
