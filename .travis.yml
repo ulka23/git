@@ -8,6 +8,8 @@ os:
   - linux
   - osx
 
+arch: ppc64le
+
 osx_image: xcode10.1
 
 compiler:
