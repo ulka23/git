@@ -5,7 +5,8 @@ cache:
     - $HOME/travis-cache
 
 os: linux
-dist: bionic
+#dist: bionic
+dist: xenial  
 
 arch:
 #   - amd64
